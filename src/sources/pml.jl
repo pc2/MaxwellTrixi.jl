@@ -43,12 +43,19 @@ end
 Source term of the uniaxial perfectly matched layer with auxiliary differential
 equations (Busch, König, Niegemann 2011, eq. 38). With the damping
 ``\sigma = (\sigma_x, \sigma_y, \sigma_z)`` of the `profile` at the node and
-cyclic indices,
+cyclic indices ``(i,j,k)``, define ``a_i = \sigma_j + \sigma_k - \sigma_i`` and
+``b_i = (\sigma_i - \sigma_j)(\sigma_i - \sigma_k)``. The added field sources
+and auxiliary equations are
 ```math
-\partial_t E_x = \ldots - (\sigma_y + \sigma_z - \sigma_x) E_x - p_x / \epsilon, \qquad
-\partial_t p_x = (\sigma_x - \sigma_y)(\sigma_x - \sigma_z) \epsilon E_x - \sigma_x p_x,
+\begin{aligned}
+(s_E)_i &= -a_i E_i - p_i / \epsilon, &
+\partial_t p_i &= b_i \epsilon E_i - \sigma_i p_i, \\
+(s_H)_i &= -a_i H_i - q_i / \mu, &
+\partial_t q_i &= b_i \mu H_i - \sigma_i q_i.
+\end{aligned}
 ```
-and the same for ``H`` and ``q`` with ``\mu``. Requires
+The directional PML damping rates are distinct from the physical Ohmic
+conductivity of the material. Requires
 [`MaxwellEquations3D`](@ref) with `UPML()`; the layer must continue the
 background material of the adjacent physical region.
 """

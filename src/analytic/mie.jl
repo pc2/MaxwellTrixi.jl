@@ -5,6 +5,14 @@ Scattering, extinction and absorption efficiencies ``Q = \sigma / (\pi a^2)`` of
 homogeneous sphere of radius ``a`` with relative refractive index `m` and size
 parameter `x` ``= k a`` in the background medium, from the Mie series in the form
 of Bohren and Huffman (`BHMIE`). An absorbing sphere has ``\operatorname{Im} m > 0``.
+For the electric and magnetic multipole coefficients ``a_n`` and ``b_n``,
+```math
+Q_{\mathrm{sca}} = \frac{2}{x^2}\sum_{n\geq1}(2n+1)(|a_n|^2+|b_n|^2),\qquad
+Q_{\mathrm{ext}} = \frac{2}{x^2}\sum_{n\geq1}(2n+1)\operatorname{Re}(a_n+b_n),
+```
+and ``Q_{\mathrm{abs}}=Q_{\mathrm{ext}}-Q_{\mathrm{sca}}``. The implementation
+uses downward recurrence for the logarithmic derivative and truncates the series
+at ``\operatorname{round}(x+4x^{1/3}+2)``.
 Returns a named tuple `(; scattering, extinction, absorption)`.
 """
 function mie_efficiencies(m::Number, x::Real)

@@ -1,0 +1,164 @@
+name: Documentation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      render_videos:
+        description: Render and include all example videos
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JULIA_NUM_THREADS: '1'
+  OPENBLAS_NUM_THREADS: '1'
+  JULIA_PKG_PRECOMPILE_AUTO: '0'
+
+jobs:
+  visuals:
+    name: Render ${{ matrix.name }}
+    if: github.event_name == 'workflow_dispatch' && inputs.render_videos
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - name: cavity_mode
+            script: elixir_maxwell_3d_cavity.jl
+          - name: fresnel
+            script: elixir_maxwell_3d_fresnel.jl
+          - name: tfsf
+            script: elixir_maxwell_3d_tfsf.jl
+          - name: dipole
+            script: elixir_maxwell_3d_dipole.jl
+          - name: pml
+            script: elixir_maxwell_3d_pml.jl
+          - name: dielectric_sphere
+            script: elixir_maxwell_3d_dielectric_sphere.jl
+          - name: pec_sphere
+            script: elixir_maxwell_3d_pec_sphere.jl
+          - name: periodic
+            script: elixir_maxwell_3d_periodic.jl
+          - name: mie
+            script: elixir_maxwell_3d_mie.jl
+          - name: dipole_p4est
+            script: p4est_3d_dgsem/elixir_maxwell_3d_dipole.jl
+    env:
+      SCENARIO_NAME: ${{ matrix.name }}
+      SCENARIO_SCRIPT: utils/visualize/${{ matrix.script }}
+      LIBGL_ALWAYS_SOFTWARE: 'true'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: julia-actions/setup-julia@v3
+        with:
+          version: '1.13'
+      - uses: julia-actions/cache@v3
+        with:
+          delete-old-caches: 'false'
+      - name: Resolve visualization environment
+        run: julia --project=utils/visualize -e 'using Pkg; Pkg.instantiate()'
+      - name: Cache rendered media
+        id: media
+        uses: actions/cache@v6
+        with:
+          path: docs/videos/${{ matrix.name }}.mp4
+          key: visuals-v1-${{ runner.os }}-${{ matrix.name }}-julia1.13-${{ hashFiles('Project.toml', 'src/**', 'ext/**', 'examples/**', 'utils/visualize/**', '.github/workflows/docs.yml') }}
+      - name: Install headless renderer
+        if: steps.media.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb xauth libgl1-mesa-dri libglx-mesa0 ffmpeg
+      - name: Render video
+        if: steps.media.outputs.cache-hit != 'true'
+        run: |
+          xvfb-run -a -s '-screen 0 1280x1024x24' \
+            julia --threads=1 --project=utils/visualize "$SCENARIO_SCRIPT" --video
+      - name: Check rendered video
+        if: steps.media.outputs.cache-hit != 'true'
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess
+          path = 'docs/videos/' + os.environ['SCENARIO_NAME'] + '.mp4'
+          data = json.loads(subprocess.check_output([
+              'ffprobe', '-v', 'error', '-select_streams', 'v:0',
+              '-show_entries', 'stream=nb_frames,avg_frame_rate', '-of', 'json', path]))
+          stream = data['streams'][0]
+          assert int(stream['nb_frames']) == 241, stream
+          assert stream['avg_frame_rate'] == '30/1', stream
+          subprocess.run(['ffmpeg', '-v', 'error', '-xerror', '-i', path,
+                          '-f', 'null', '-'], check=True)
+          PY
+      - uses: actions/upload-artifact@v7
+        with:
+          name: visual-${{ matrix.name }}
+          path: docs/videos/${{ matrix.name }}.mp4
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+
+  build:
+    name: Build documentation
+    needs: visuals
+    if: ${{ !cancelled() && (needs.visuals.result == 'success' || needs.visuals.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: julia-actions/setup-julia@v3
+        with:
+          version: '1.13'
+      - uses: julia-actions/cache@v3
+        with:
+          delete-old-caches: 'false'
+      - uses: actions/download-artifact@v8
+        if: needs.visuals.result == 'success'
+        with:
+          pattern: visual-*
+          merge-multiple: true
+          path: docs/videos
+      - name: Install documentation dependencies
+        run: julia --project=docs -e 'using Pkg; Pkg.instantiate()'
+      - name: Build documentation
+        run: julia --threads=1 --project=docs docs/make.jl
+      - uses: actions/upload-artifact@v7
+        if: github.event_name == 'pull_request'
+        with:
+          name: documentation
+          path: docs/build
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-pages-artifact@v4
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        with:
+          path: docs/build
+
+  deploy:
+    name: Publish GitHub Pages
+    if: ${{ !cancelled() && needs.build.result == 'success' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+    needs: build
+    runs-on: ubuntu-latest
+    concurrency:
+      group: docs-pages
+      cancel-in-progress: false
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v5
+      - name: Deploy documentation
+        id: deployment
+        uses: actions/deploy-pages@v4

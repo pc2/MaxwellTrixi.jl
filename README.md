@@ -145,6 +145,22 @@ The dipole elixir saves the initial and final states and every 100 accepted step
 
 Trixi2Vtk v0.3.33 reads 3D `P4estMesh` refinement levels using the 2D p4est struct layout, so its converted `levels` cell data are unreliable. The dipole script uses element edges to show refinement geometrically instead of coloring by these levels. Check whether this converter issue has been fixed when using another version.
 
+## Documentation
+
+The documentation explains the implementation together with its equations,
+examples and videos. To build it locally from the repository root:
+
+```sh
+julia --project=docs -e 'using Pkg; Pkg.instantiate()'
+julia --threads=1 --project=docs docs/make.jl
+python3 -m http.server 8000 --bind 127.0.0.1 --directory docs/build
+```
+
+Open http://127.0.0.1:8000. The site uses figures from `docs/figures/`, replacing
+them with matching videos from `docs/videos/` when available. GitHub Actions
+publishes the documentation with figures by default; video rendering is opt-in.
+See [Building and publishing](docs/src/building.md) for editing and build instructions.
+
 ## Tests
 
 ```julia

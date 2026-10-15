@@ -1,4 +1,4 @@
-"""
+@doc raw"""
     TotalFieldScatteredField(incident_field, mesh::DGMultiMesh, is_total_field)
 
 Total-field/scattered-field interface on all interior faces between elements
@@ -6,7 +6,15 @@ whose centroids `is_total_field(x)` classifies differently. Used as a value of
 `boundary_conditions`, it recomputes the interface flux on these faces with the
 incident field added to the neighbor state seen from the total-field side and
 subtracted on the scattered-field side, so the incident wave exists only in the
-total-field region. The incident field must be a free-space solution in the
+total-field region. For the physical fields,
+```math
+u_{\mathrm{stored}} = \begin{cases}
+u_{\mathrm{inc}} + u_{\mathrm{scat}}, & x \in \Omega_{\mathrm{TF}}, \\
+u_{\mathrm{scat}}, & x \notin \Omega_{\mathrm{TF}}.
+\end{cases}
+```
+Outside the total-field region, add the incident field to reconstruct the total
+field. The incident field must be a free-space solution in the
 background material, which has to fill the interface faces. Start from
 [`initial_condition_zero`](@ref) with a delayed signal, or with the incident
 field if it is still outside the domain.

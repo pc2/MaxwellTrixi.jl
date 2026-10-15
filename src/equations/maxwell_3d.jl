@@ -80,11 +80,20 @@ end
                        drude = (), lorentz = ())
     MaxwellEquations3D(UPML(); kwargs...)
 
-Maxwell's curl equations for the fields ``(E, H)`` in a linear medium,
+Maxwell's curl equations for the fields ``(E, H)`` in a linear medium. In the
+physical region, with an impressed current ``J_{\mathrm{src}}`` and optional
+polarization currents ``J_k``, the combined model is
 ```math
-\epsilon \partial_t E = \nabla \times H - \sigma E, \qquad
-\mu \partial_t H = -\nabla \times E.
+\begin{aligned}
+\epsilon_\infty \partial_t E
+    &= \nabla \times H - \sigma E - J_{\mathrm{src}} - \sum_k J_k, \\
+\mu \partial_t H &= -\nabla \times E.
+\end{aligned}
 ```
+For a nondispersive medium ``\epsilon_\infty = \epsilon`` and the sum is empty.
+The flux supplies the curl terms; conductivity, impressed currents and material
+poles require the corresponding source terms in the semidiscretization. PML
+adds the local terms described by [`SourceTermsPML`](@ref).
 Units are normalized: `epsilon` and `mu` are relative values, the vacuum speed
 of light and impedance are one, and a conductivity ``\sigma`` in SI units
 becomes ``\sigma Z_0 L`` for the length unit ``L``.
@@ -476,6 +485,12 @@ struct FluxUpwindPenalty{RealT <: Real}
     alpha::RealT
 end
 
+"""
+    flux_upwind
+
+Upwind Maxwell numerical flux, equivalent to `FluxUpwindPenalty(1.0)`.
+See [`FluxUpwindPenalty`](@ref) for its material-interface formulation.
+"""
 const flux_upwind = FluxUpwindPenalty(1.0)
 
 @inline function (numerical_flux::FluxUpwindPenalty)(u_ll, u_rr,

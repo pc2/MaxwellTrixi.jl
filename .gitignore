@@ -4,3 +4,5 @@ Manifest.toml
 /out/
 /meshes/
 /run_agents/
+
+/docs/build/

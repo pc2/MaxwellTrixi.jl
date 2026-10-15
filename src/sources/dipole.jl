@@ -4,7 +4,12 @@
 Electric dipole ``p(t) = s(t) \, p_0`` at `position` with `moment` ``p_0`` and
 time `signal` ``s``, regularized in space over
 ``G_w(x) = \exp(-|x - x_0|^2 / w^2) / (\pi^{3/2} w^3)``. Passed as `source_terms`
-it drives Ampère's law with the current density ``J = \dot p \, G_w`` and adds
+it drives Ampère's law with the current density
+```math
+J_{\mathrm{src}}(x,t) = \dot s(t)\,p_0\,
+    \frac{\exp(-|x-x_0|^2/w^2)}{\pi^{3/2}w^3}
+```
+and adds
 the Ohmic loss of [`source_terms_conductivity`](@ref). The exact field of the
 point dipole is [`HertzianDipoleField`](@ref).
 """
@@ -45,9 +50,9 @@ end
     HertzianDipoleField(position, moment, signal)
     HertzianDipoleField(dipole::HertzianDipole, equations)
 
-Exact field of the point dipole ``p(t) = s(t) \, p_0`` in the background material,
-with ``R = |x - x_0|``, ``\hat r = (x - x_0) / R`` and all moments taken at the
-retarded time ``t - R / c``:
+Exact field of the point dipole ``p(t) = s(t) \, p_0`` in a homogeneous,
+lossless, nondispersive background material, with ``R = |x - x_0|``,
+``\hat r = (x - x_0) / R`` and all moments taken at the retarded time ``t - R / c``:
 ```math
 E = \frac{1}{4 \pi \epsilon} \left( \frac{3 \hat r (\hat r \cdot p) - p}{R^3}
   + \frac{3 \hat r (\hat r \cdot \dot p) - \dot p}{c R^2}
@@ -58,8 +63,8 @@ H = \frac{1}{4 \pi} \left( \frac{\dot p \times \hat r}{R^2}
 Outside the source region ``R \gg w`` the regularized [`HertzianDipole`](@ref)
 radiates like a point dipole whose signal is ``s`` convolved with the line-of-sight
 profile of ``G_w``, a Gaussian of width ``w / c``. For a [`GaussianPulse`](@ref) of
-width ``a`` this is a Gaussian pulse of width ``\sqrt{a^2 + w^2}`` with the moment
-scaled by ``a / \sqrt{a^2 + w^2}``, which the second constructor applies.
+width ``a`` this is a Gaussian pulse of width ``\sqrt{a^2 + (w/c)^2}`` with the
+moment scaled by ``a / \sqrt{a^2 + (w/c)^2}``, which the second constructor applies.
 """
 struct HertzianDipoleField{RealT <: Real, Signal} <: AbstractIncidentField
     position::SVector{3, RealT}

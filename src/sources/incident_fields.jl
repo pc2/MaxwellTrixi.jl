@@ -14,6 +14,8 @@ abstract type AbstractIncidentField end
 Plane wave ``E = s(t - \hat k \cdot x / c) \, e``, ``H = Y \, \hat k \times E`` with
 the unit propagation direction ``\hat k``, the polarization vector ``e`` (amplitude
 included, orthogonal to ``\hat k``) and a time signal such as [`GaussianPulse`](@ref).
+Requires a homogeneous, lossless, nondispersive background material; ``c`` and
+``Y`` are taken from the equations object.
 """
 struct PlaneWave{RealT <: Real, Signal} <: AbstractIncidentField
     direction::SVector{3, RealT}
