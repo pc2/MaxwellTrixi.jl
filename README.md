@@ -62,10 +62,87 @@ Keyword arguments of `trixi_include` override the variables of the elixir, for e
 
 Elixirs on imported meshes download their mesh on first use.
 
-To write a VTK series for ParaView, add a `SaveVtkCallback(dt = 0.1, output_directory = "out", filename = "solution")` to the callbacks and open the resulting `.pvd` file.
+## Figures and GLMakie videos
 
-The slab and Mie elixirs write such a series to `out/`.
-From the package root, `paraview --script=utils/paraview/slab.py` and `paraview --script=utils/paraview/mie.py` can be used.
+Each file in `utils/visualize/` matches its simulation elixir's filename and
+contains that scenario's slice settings, figure layout, overlays and video
+configuration. The P4est dipole uses the subdirectory `p4est_3d_dgsem/` to
+distinguish it from the DGMulti dipole. `common.jl` contains shared sampling,
+interpolation and plot-update routines.
+
+Prepare the environment with Julia 1.13, then run a scenario:
+
+```bash
+julia --project=utils/visualize -e 'using Pkg; Pkg.instantiate()'
+# One figure or video:
+julia --project=utils/visualize utils/visualize/elixir_maxwell_3d_pml.jl
+julia --project=utils/visualize utils/visualize/elixir_maxwell_3d_pml.jl --video
+# AMR dipole:
+julia --project=utils/visualize utils/visualize/p4est_3d_dgsem/elixir_maxwell_3d_dipole.jl --video
+# All figures or all videos:
+julia --project=utils/visualize utils/visualize/make_all.jl
+julia --project=utils/visualize utils/visualize/make_all.jl --video
+```
+
+PNGs go to `docs/figures/` and MP4s to `docs/videos/`. Scenarios cover cavity,
+Fresnel, TF/SF, dipole, AMR dipole, PML, dielectric sphere, PEC sphere,
+periodic waves and Mie scattering.
+
+Video simulations run for twice the span of the original animations, while
+still figures retain their original snapshot times. Videos use 241 frames at
+30 fps by default, fixed color scales and left-aligned updating titles. Dipole
+videos update both the field slice and the numerical versus
+analytical line probe. The P4est video captures the current mesh with each frame,
+so refinement and coarsening remain synchronized with the field and probe.
+PML retains the side-by-side comparison and narrow scale of its static figure;
+the stronger outgoing pulse saturates that scale, highlighting late reflections.
+Imported tetrahedra use affine geometry for the current native slicer. TF/SF
+outlines mark total field inside and scattered field outside.
+
+Use `trixi_include` to override a visualization's assignments, just as with a
+simulation elixir. For example, for a short preview in `julia --project=utils/visualize`:
+
+```julia
+using Trixi
+trixi_include("utils/visualize/elixir_maxwell_3d_pml.jl";
+              video = true, frame_times = [0.0, 0.05, 0.1],
+              simulation_overrides = (; polydeg = 1, cells_per_dimension = (2, 2, 2)))
+```
+
+## ParaView output
+
+ParaView is used only for inspecting the full 3D adaptive mesh of the P4est
+dipole. Its single view combines a clipped half-domain element mesh with a
+`Hy` slice near `y = 0`, so you can rotate the view and follow refinement
+throughout the volume. The CairoMakie figure and GLMakie video show the same
+simulation as a 2D slice with the analytical probe comparison.
+
+The script opens at the first saved frame (`t = 0`). Press Play to animate;
+change the clipping plane in the pipeline to inspect another part of the mesh.
+Set `PV_TIME` to choose another initial time (rounded to the nearest saved
+frame), or `DIPOLE_PVD` and `DIPOLE_MESH_PVD` for other collection paths.
+
+The dipole elixir uses Trixi.jl's own `SaveSolutionCallback` and is converted with [Trixi2Vtk.jl](https://github.com/trixi-framework/Trixi2Vtk.jl). The P4est dipole carries the callback; after running it,
+
+```julia
+using Trixi2Vtk
+trixi2vtk(joinpath("out", "solution_*.h5"), output_directory = joinpath("out", "vtk"),
+          pvd = "dipole")
+trixi2vtk(joinpath("out", "solution_*.h5"), output_directory = joinpath("out", "vtk_mesh"),
+          nvisnodes = 2, pvd = "dipole")
+```
+
+The first call preserves the high-order field representation in Lagrange hexahedra; the second uses only the element corners for a linear mesh overlay. Then `paraview --script=utils/paraview/dipole_p4est.py`.
+
+For a headless preview after conversion:
+
+```sh
+PV_SCREENSHOT=/tmp/amr.png pvpython utils/paraview/dipole_p4est.py
+```
+
+The dipole elixir saves the initial and final states and every 100 accepted steps. The number of frames and their sizes depend on CFL stepping and the evolving adaptive mesh. `trixi_include(elixir; save_solution_interval = 20)` samples the animation more frequently. The explicit `pvd` names above keep the script paths independent of the saved step numbers.
+
+Trixi2Vtk v0.3.33 reads 3D `P4estMesh` refinement levels using the 2D p4est struct layout, so its converted `levels` cell data are unreliable. The dipole script uses element edges to show refinement geometrically instead of coloring by these levels. Check whether this converter issue has been fixed when using another version.
 
 ## Tests
 
@@ -75,17 +152,10 @@ Pkg.test("TrixiMaxwell")
 ```
 
 ## Figures
- 
-The figures below are produced by the scripts in `utils/plots/`, which run an elixir, slice the 3D solution with `PlotData2D` and draw it with CairoMakie.
 
-To regenerate them:
-
-```julia
-using Pkg
-Pkg.activate("utils/plots")
-Pkg.develop(path = ".")
-include("utils/plots/make_all.jl")
-```
+The figures below are produced by the scenario scripts in `utils/visualize/` using
+CairoMakie. Run `julia --project=utils/visualize utils/visualize/make_all.jl` to regenerate
+them, or add `--video` for their GLMakie animations.
 
 PEC cavity with exact TM mode.
 

@@ -49,6 +49,7 @@ semi = SemidiscretizationHyperbolic(mesh, equations, initial_condition, solver;
 
 # the pulse peak enters the layer at t = 2.4; afterwards only reflections remain
 tspan = (0.0, 4.0)
+saveat = ()
 ode = semidiscretize(semi, tspan)
 
 summary_callback = SummaryCallback()
@@ -69,4 +70,6 @@ callbacks = CallbackSet(summary_callback, analysis_callback, alive_callback,
 
 sol = solve(ode, CarpenterKennedy2N54(williamson_condition = false);
             dt = 1.0, # overwritten by the stepsize callback
+            saveat = saveat,
+            tstops = saveat,
             ode_default_options()..., callback = callbacks)

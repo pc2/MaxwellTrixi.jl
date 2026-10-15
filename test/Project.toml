@@ -17,4 +17,4 @@ Trixi = "0.17"
 TrixiTest = "0.2.1"
 
 [sources]
-Trixi = {url = "https://github.com/papeg/Trixi.jl.git", rev = "dgmultislice_staging"}
+Trixi = {url = "https://github.com/trixi-framework/Trixi.jl.git", rev = "main"}

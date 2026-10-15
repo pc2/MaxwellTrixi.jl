@@ -57,6 +57,13 @@ alive_callback = AliveCallback(analysis_interval = analysis_interval)
 cfl = 0.5
 stepsize_callback = StepsizeCallback(cfl = cfl)
 
+# Trixi.jl HDF5 output; convert it with Trixi2Vtk.jl for ParaView, see the README.
+# Lower the interval for a smoother animation; every frame is about 3 MB.
+save_solution_interval = 100
+save_solution_callback = SaveSolutionCallback(interval = save_solution_interval,
+                                              output_directory = "out",
+                                              solution_variables = cons2cons)
+
 # Adaptive mesh refinement: the Löhner indicator on the energy density follows
 # the pulse, the distance indicator keeps the elements around the narrow
 # source refined.
@@ -93,6 +100,12 @@ function (indicator::IndicatorSourceAndWave)(u, mesh, equations, dg, cache; kwar
                 (alpha_energy .> indicator.energy_floor), alpha_source)
 end
 
+# The indicator keeps no `alpha` cache, so it has nothing to hand to the solution file.
+function Trixi.get_element_variables!(element_variables, ::IndicatorSourceAndWave,
+                                      ::Trixi.AMRCallback)
+    return nothing
+end
+
 amr_indicator = IndicatorSourceAndWave(IndicatorLöhner(semi, variable = energy_total),
                                        IndicatorMax(semi, variable = energy_total),
                                        IndicatorDistance(SVector(0.0, 0.0, 0.0), 0.45),
@@ -108,7 +121,7 @@ amr_callback = AMRCallback(semi, amr_controller, interval = amr_interval,
                            adapt_initial_condition_only_refine = true)
 
 callbacks = CallbackSet(summary_callback, analysis_callback, alive_callback,
-                        amr_callback, stepsize_callback)
+                        amr_callback, save_solution_callback, stepsize_callback)
 
 ###############################################################################
 # run the simulation

@@ -72,14 +72,11 @@ alive_callback = AliveCallback(analysis_interval = analysis_interval)
 frequencies = range(0.1, 0.19, length = 19)
 cross_section_callback = CrossSectionCallback(semi, tfsf, frequencies)
 
-save_vtk_callback = SaveVtkCallback(dt = 0.5, output_directory = "out",
-                                    filename = "gold_nanosphere")
-
 cfl = 0.5
 stepsize_callback = StepsizeCallback(cfl = cfl)
 
 callbacks = CallbackSet(summary_callback, analysis_callback, alive_callback,
-                        cross_section_callback, save_vtk_callback,
+                        cross_section_callback,
                         stepsize_callback)
 
 ###############################################################################

@@ -48,6 +48,7 @@ semi = SemidiscretizationHyperbolic(mesh, equations, initial_condition, solver;
 # ODE solvers, callbacks etc.
 
 tspan = (0.0, 8.0)
+saveat = ()
 ode = semidiscretize(semi, tspan)
 set_materials!(ode.u0, semi, material_at)
 
@@ -62,14 +63,11 @@ alive_callback = AliveCallback(analysis_interval = analysis_interval)
 frequencies = range(0.2, 1.4, length = 13)
 cross_section_callback = CrossSectionCallback(semi, tfsf, frequencies)
 
-save_vtk_callback = SaveVtkCallback(dt = 0.25, output_directory = "out",
-                                    filename = "mie")
-
 cfl = 0.5
 stepsize_callback = StepsizeCallback(cfl = cfl)
 
 callbacks = CallbackSet(summary_callback, analysis_callback, alive_callback,
-                        cross_section_callback, save_vtk_callback,
+                        cross_section_callback,
                         stepsize_callback)
 
 ###############################################################################
@@ -77,6 +75,8 @@ callbacks = CallbackSet(summary_callback, analysis_callback, alive_callback,
 
 sol = solve(ode, CarpenterKennedy2N54(williamson_condition = false);
             dt = 1.0, # overwritten by the stepsize callback
+            saveat = saveat,
+            tstops = saveat,
             ode_default_options()..., callback = callbacks)
 
 sigma = cross_sections(cross_section_callback)

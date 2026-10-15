@@ -59,14 +59,11 @@ detector_front = DetectorPlaneCallback(semi, incident_field, frequencies;
 detector_back = DetectorPlaneCallback(semi, incident_field, frequencies;
                                       point = (0.0, 0.0, 1.0), normal = (0.0, 0.0, 1.0))
 
-save_vtk_callback = SaveVtkCallback(dt = 0.1, output_directory = "out",
-                                    filename = "slab")
-
 cfl = 0.5
 stepsize_callback = StepsizeCallback(cfl = cfl)
 
 callbacks = CallbackSet(summary_callback, analysis_callback, alive_callback,
-                        detector_front, detector_back, save_vtk_callback,
+                        detector_front, detector_back,
                         stepsize_callback)
 
 ###############################################################################

@@ -23,4 +23,4 @@ Trixi = "0.17"
 WriteVTK = "1.22"
 
 [sources]
-Trixi = {url = "https://github.com/papeg/Trixi.jl.git", rev = "dgmultislice_staging"}
+Trixi = {url = "https://github.com/trixi-framework/Trixi.jl.git", rev = "main"}

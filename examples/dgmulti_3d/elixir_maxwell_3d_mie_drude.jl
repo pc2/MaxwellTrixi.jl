@@ -66,14 +66,11 @@ alive_callback = AliveCallback(analysis_interval = analysis_interval)
 frequencies = range(0.2, 1.4, length = 13)
 cross_section_callback = CrossSectionCallback(semi, tfsf, frequencies)
 
-save_vtk_callback = SaveVtkCallback(dt = 0.25, output_directory = "out",
-                                    filename = "mie_drude")
-
 cfl = 0.5
 stepsize_callback = StepsizeCallback(cfl = cfl)
 
 callbacks = CallbackSet(summary_callback, analysis_callback, alive_callback,
-                        cross_section_callback, save_vtk_callback,
+                        cross_section_callback,
                         stepsize_callback)
 
 ###############################################################################

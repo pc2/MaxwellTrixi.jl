@@ -1,7 +1,14 @@
 [deps]
+TrixiMaxwell = "e32c1b01-4392-4ccd-ba64-a479455ba269"
+Trixi = "a7f1ee26-1774-49b1-8366-f1abc58fbfcb"
+GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 GeometryBasics = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
 Gmsh = "705231aa-382f-11e9-3f0c-b7cb4346fdeb"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 OrdinaryDiffEqLowStorageRK = "b0944070-b475-4768-8dec-fb6eb410534d"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+
+[sources]
+Trixi = {url = "https://github.com/trixi-framework/Trixi.jl.git", rev = "main"}
+TrixiMaxwell = {path = "../.."}
