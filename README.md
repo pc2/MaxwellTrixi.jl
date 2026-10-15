@@ -35,10 +35,11 @@ Currently they cover
 
 ## Installation
 
-The package currently depends on a Trixi.jl branch with 3D `DGMulti` slicing, pinned in `Project.toml` through `[sources]`. In a Julia 1.11 or newer session:
+The package currently needs Trixi.jl `main`, which includes 3D `DGMulti` slicing. In a Julia 1.13 or newer session:
 
 ```julia
 using Pkg
+Pkg.add(url = "https://github.com/trixi-framework/Trixi.jl.git", rev = "main")
 Pkg.develop(path = "path/to/TrixiMaxwell.jl")
 Pkg.instantiate()
 ```

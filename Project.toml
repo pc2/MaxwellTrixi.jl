@@ -17,7 +17,7 @@ TrixiMaxwellGmshExt = "Gmsh"
 
 [compat]
 Gmsh = "0.3"
-julia = "1.11"
+julia = "1.13"
 StaticArrays = "1"
 Trixi = "0.17"
 WriteVTK = "1.22"
