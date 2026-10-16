@@ -1,6 +1,6 @@
 module MaxwellVisuals
 
-using Trixi, TrixiMaxwell
+using Trixi, MaxwellTrixi
 using GLMakie, CairoMakie
 using GeometryBasics
 using StaticArrays: SVector

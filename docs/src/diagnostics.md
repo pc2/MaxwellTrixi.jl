@@ -1,7 +1,7 @@
 # Diagnostics and validation
 
 ```@meta
-CurrentModule = TrixiMaxwell
+CurrentModule = MaxwellTrixi
 ```
 
 ## Field energy and divergence
@@ -67,7 +67,7 @@ fields after accepted time steps rather than retaining the complete solution
 history. The integration uses the actual step lengths, including variable ones.
 
 ```@docs
-TrixiMaxwell.SurfaceTransformCallback
+MaxwellTrixi.SurfaceTransformCallback
 CrossSectionCallback
 DetectorPlaneCallback
 cross_sections

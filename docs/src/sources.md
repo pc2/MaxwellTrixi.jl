@@ -1,7 +1,7 @@
 # Sources and boundaries
 
 ```@meta
-CurrentModule = TrixiMaxwell
+CurrentModule = MaxwellTrixi
 ```
 
 ## Time signals and incident fields
@@ -17,13 +17,13 @@ GaussianPulse
 ModulatedGaussianPulse
 signal_derivative
 signal_second_derivative
-TrixiMaxwell.AbstractIncidentField
+MaxwellTrixi.AbstractIncidentField
 PlaneWave
 initial_condition_zero
 ```
 
 ```jldoctest
-julia> using TrixiMaxwell
+julia> using MaxwellTrixi
 
 julia> pulse = GaussianPulse(0.4; delay = 1.4);
 

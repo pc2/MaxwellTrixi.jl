@@ -2,11 +2,11 @@ module TestExamplesDGMulti3D
 
 using Test
 using Trixi
-using TrixiMaxwell
+using MaxwellTrixi
 
 include("test_trixi.jl")
 
-EXAMPLES_DIR = pkgdir(TrixiMaxwell, "examples", "dgmulti_3d")
+EXAMPLES_DIR = pkgdir(MaxwellTrixi, "examples", "dgmulti_3d")
 
 # Start with a clean environment: remove Trixi.jl output directory if it exists
 outdir = "out"
@@ -192,14 +192,14 @@ end
                                 Trixi.wrap_array(du, semi), Trixi.wrap_array(u, semi),
                                 sol.t[end], mesh, equations, solver, cache)
     ohmic_loss = Trixi.integrate(u, semi, normalize = false) do u_node, equations
-        E = TrixiMaxwell.electric_field(u_node)
+        E = MaxwellTrixi.electric_field(u_node)
         return conductivity(u_node, equations) * sum(abs2, E)
     end
     @test isapprox(energy_rate, -ohmic_loss, rtol = 1e-12)
 end
 
 @trixi_testset "elixir_maxwell_3d_cavity.jl (convergence)" begin
-    using Trixi, TrixiMaxwell
+    using Trixi, MaxwellTrixi
     # Ez, Hx, Hy carry the mode; Ex, Ey, Hz are zero in the exact solution
     mode_components = (3, 4, 5)
     for polydeg in (1, 2)
@@ -313,7 +313,7 @@ end
 end
 
 @trixi_testset "elixir_maxwell_3d_fresnel.jl (convergence)" begin
-    using Trixi, TrixiMaxwell
+    using Trixi, MaxwellTrixi
     eocs, _ = Trixi.convergence_test(@__MODULE__,
                                      joinpath(EXAMPLES_DIR,
                                               "elixir_maxwell_3d_fresnel.jl"),
@@ -407,7 +407,7 @@ end
 end
 @trixi_testset "elixir_maxwell_3d_dipole.jl" begin
     @test_trixi_include(joinpath(EXAMPLES_DIR, "elixir_maxwell_3d_dipole.jl"))
-    using TrixiMaxwell: electric_field, magnetic_field
+    using MaxwellTrixi: electric_field, magnetic_field
     using LinearAlgebra: norm
     probes = [SVector(0.5, 0.0, 0.0), SVector(0.0, 0.5, 0.0), SVector(0.0, 0.0, 0.5),
         SVector(0.35, 0.35, 0.0), SVector(0.3, 0.2, 0.4), SVector(-0.4, 0.1, -0.5)]
@@ -435,7 +435,7 @@ end
         energy = sum(solver_.basis.M *
                      energy_total.(view(u, :, element), Ref(equations_))) *
                  md.J[1, element]
-        if is_total_field(TrixiMaxwell.element_centroid(md, element))
+        if is_total_field(MaxwellTrixi.element_centroid(md, element))
             energy_in += energy
         else
             energy_out += energy

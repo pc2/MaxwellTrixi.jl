@@ -1,6 +1,6 @@
 using OrdinaryDiffEqLowStorageRK
 using Trixi
-using TrixiMaxwell
+using MaxwellTrixi
 
 ###############################################################################
 # semidiscretization of the Maxwell equations on an imported Gambit mesh

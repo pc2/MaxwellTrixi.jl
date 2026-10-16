@@ -2,7 +2,7 @@ module TestUnit
 
 using Test
 using Trixi
-using TrixiMaxwell
+using MaxwellTrixi
 using StaticArrays: SVector
 using LinearAlgebra: norm, dot, cross
 
@@ -260,7 +260,7 @@ end
 
     imported = ImportedMesh((VX, VY, VZ), EToV; face_sets, face_set_names = names)
     @test imported isa ImportedMesh{Float64}
-    @test TrixiMaxwell.num_elements(imported) == size(EToV, 1)
+    @test MaxwellTrixi.num_elements(imported) == size(EToV, 1)
     @test all(==(1), imported.element_groups)
     @test occursin("48 tetrahedra", sprint(show, imported))
 
@@ -344,7 +344,7 @@ end
     @test_throws ArgumentError ImportedMesh((VX, VY, VZ), too_large)
 
     # VTK export of the imported mesh
-    vtk = TrixiMaxwell.mesh_vtk_data(imported)
+    vtk = MaxwellTrixi.mesh_vtk_data(imported)
     @test size(vtk.points) == (3, length(VX))
     @test length(vtk.volume_cells) == size(EToV, 1)
     @test length(vtk.face_cells) == sum(length, values(face_sets))
@@ -352,7 +352,7 @@ end
     for tag in 1:6
         @test count(==(tag), vtk.face_tags) == length(face_sets[tag])
     end
-    vtk_mixed = TrixiMaxwell.mesh_vtk_data(ImportedMesh((VX, VY, VZ), EToV;
+    vtk_mixed = MaxwellTrixi.mesh_vtk_data(ImportedMesh((VX, VY, VZ), EToV;
                                                         face_sets = Dict(1 => [interior])))
     @test vtk_mixed.face_on_boundary == [0]
     mktempdir() do dir
@@ -367,8 +367,8 @@ end
                               face_set_names = names)
     @test imported32 isa ImportedMesh{Float32}
 
-    @test TrixiMaxwell.face_set_key(3, Dict{Int, String}()) == :tag_3
-    @test TrixiMaxwell.face_set_key(3, Dict(3 => "Wall")) == :Wall
+    @test MaxwellTrixi.face_set_key(3, Dict{Int, String}()) == :tag_3
+    @test MaxwellTrixi.face_set_key(3, Dict(3 => "Wall")) == :Wall
 end
 
 @timed_testset "Heterogeneous materials" begin
@@ -466,16 +466,16 @@ end
 
     # analytic initial conditions are homogeneous; heterogeneous elixirs define their own
     @test_throws MethodError initial_condition_cavity(x, 0.0, equations)
-    @test TrixiMaxwell.with_passive_defaults(fields, equations) ==
+    @test MaxwellTrixi.with_passive_defaults(fields, equations) ==
           vcat(fields, [4.0, 1.0, 0.5])
-    @test TrixiMaxwell.with_passive_defaults(fields, homogeneous) === fields
+    @test MaxwellTrixi.with_passive_defaults(fields, homogeneous) === fields
 end
 
 @timed_testset "Material and set_materials!" begin
     @test Material() == Material(1.0, 1.0, 0.0)
     @test Material(epsilon = 4) isa Material{Float64}
     @test Material(epsilon = 4.0f0).mu === 1.0f0
-    @test TrixiMaxwell.material_components(Material(epsilon = 4.0, sigma = 0.5)) ==
+    @test MaxwellTrixi.material_components(Material(epsilon = 4.0, sigma = 0.5)) ==
           SVector(4.0, 1.0, 0.5)
 
     dg = DGMulti(polydeg = 2, element_type = Tet(), approximation_type = Polynomial(),
@@ -493,7 +493,7 @@ end
     glass = Material(epsilon = 2.25)
     set_materials!(ode.u0, semi, x -> x[1] < 0 ? Material() : glass)
     u = Trixi.wrap_array(ode.u0, semi)
-    centroids = [TrixiMaxwell.element_centroid(mesh.md, e) for e in axes(u, 2)]
+    centroids = [MaxwellTrixi.element_centroid(mesh.md, e) for e in axes(u, 2)]
     expected(e) = centroids[e][1] < 0 ? SVector(1.0, 1.0, 0.0) : SVector(2.25, 1.0, 0.0)
     @test all(u[node, e][7:9] == expected(e) for e in axes(u, 2), node in axes(u, 1))
     fields0 = initial_condition_fresnel_like(SVector(0.0, 0.0, 0.0), 0.0, equations)[1:6]
@@ -683,7 +683,7 @@ end
     # Gauss-Hermite style check of the normalization on a fine grid
     grid = range(-0.5, 0.5, length = 201)
     dx = step(grid)
-    total = sum(TrixiMaxwell.current_density(dipole, position + SVector(a, b, c), t)
+    total = sum(MaxwellTrixi.current_density(dipole, position + SVector(a, b, c), t)
                 for a in grid, b in grid, c in grid) * dx^3
     @test total≈signal_derivative(signal, t) * moment rtol=1e-6
     heterogeneous = MaxwellEquations3D(Heterogeneous(); epsilon = 2.0, mu = 1.5)
@@ -976,18 +976,18 @@ end
           ("Ex", "Ey", "Ez", "Hx", "Hy", "Hz", "px", "py", "pz", "qx", "qy", "qz")
     @test Trixi.varnames(cons2cons, MaxwellEquations3D(Heterogeneous(), UPML()))[7:9] ==
           ("epsilon", "mu", "sigma")
-    @test TrixiMaxwell.pml_offset(equations) == 6
-    @test TrixiMaxwell.pml_offset(MaxwellEquations3D(Heterogeneous(), UPML())) == 9
+    @test MaxwellTrixi.pml_offset(equations) == 6
+    @test MaxwellTrixi.pml_offset(MaxwellEquations3D(Heterogeneous(), UPML())) == 9
 
     fields = SVector(1.0, 2.0, 3.0, 4.0, 5.0, 6.0)
-    u = TrixiMaxwell.with_passive_defaults(fields, equations)
+    u = MaxwellTrixi.with_passive_defaults(fields, equations)
     @test u == vcat(fields, zeros(6))
-    @test TrixiMaxwell.passive_flux(equations) == zeros(6)
-    @test TrixiMaxwell.pml_electric(u, equations) == zeros(3)
+    @test MaxwellTrixi.passive_flux(equations) == zeros(6)
+    @test MaxwellTrixi.pml_electric(u, equations) == zeros(3)
     u = SVector(ntuple(Float64, 12))
-    @test TrixiMaxwell.pml_electric(u, equations) == SVector(7.0, 8.0, 9.0)
-    @test TrixiMaxwell.pml_magnetic(u, equations) == SVector(10.0, 11.0, 12.0)
-    @test TrixiMaxwell.assemble(SVector(0.0, 0.0, 0.0), SVector(0.0, 0.0, 0.0), u,
+    @test MaxwellTrixi.pml_electric(u, equations) == SVector(7.0, 8.0, 9.0)
+    @test MaxwellTrixi.pml_magnetic(u, equations) == SVector(10.0, 11.0, 12.0)
+    @test MaxwellTrixi.assemble(SVector(0.0, 0.0, 0.0), SVector(0.0, 0.0, 0.0), u,
                                 equations) ==
           vcat(zeros(6), u[7:12])
     @test flux(u, 1, equations)[7:12] == zeros(6)
@@ -1058,7 +1058,7 @@ end
     equations = MaxwellEquations3D(Heterogeneous(); drude = (DrudePole(0.0, 0.0),),
                                    lorentz = (LorentzPole(0.0, 0.0, 0.0),))
     material = Material(epsilon = 2.0, drude = (drude,), lorentz = (lorentz,))
-    state = TrixiMaxwell.material_state(material, equations)
+    state = MaxwellTrixi.material_state(material, equations)
     @test state == SVector(2.0, 1.0, 0.0, 2.0, 0.5, 1.0, 4.0, 0.2)
     E = SVector(1.0, -0.5, 0.25)
     J_d = SVector(0.5, 0.0, 0.1)
@@ -1073,9 +1073,9 @@ end
     @test du[21:23] ≈ 16.0 * E - 16.0 * P_l - 0.2 * J_l
     # inactive poles of the background leave the currents at rest
     vacuum = vcat(E, SVector(0.0, 0.0, 0.0),
-                  TrixiMaxwell.material_state(Material(), equations), zeros(SVector{9}))
+                  MaxwellTrixi.material_state(Material(), equations), zeros(SVector{9}))
     @test all(iszero, source_terms_dispersive(vacuum, nothing, 0.0, equations)[4:end])
-    @test_throws ArgumentError TrixiMaxwell.material_state(Material(drude = (drude,
+    @test_throws ArgumentError MaxwellTrixi.material_state(Material(drude = (drude,
                                                                              drude)),
                                                            equations)
 

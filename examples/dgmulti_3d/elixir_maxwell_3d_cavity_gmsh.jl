@@ -1,6 +1,6 @@
 using OrdinaryDiffEqLowStorageRK
 using Trixi
-using TrixiMaxwell
+using MaxwellTrixi
 using Gmsh
 
 ###############################################################################

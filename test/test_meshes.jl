@@ -2,7 +2,7 @@ module TestMeshes
 
 using Test
 using Trixi
-using TrixiMaxwell
+using MaxwellTrixi
 using Gmsh
 
 include("test_trixi.jl")
@@ -32,11 +32,11 @@ end
                                                            ("sphere.neu", 15, 24,
                                                             :sphere, 24))
         imported = read_gambit(download_mesh(name))
-        @test TrixiMaxwell.num_vertices(imported) == vertices
-        @test TrixiMaxwell.num_elements(imported) == elements
+        @test MaxwellTrixi.num_vertices(imported) == vertices
+        @test MaxwellTrixi.num_elements(imported) == elements
         @test all(==(1), imported.element_groups)
         @test set_sizes(imported) == Dict(1 => set_size)
-        @test TrixiMaxwell.face_set_key(1, imported.face_set_names) == set_name
+        @test MaxwellTrixi.face_set_key(1, imported.face_set_names) == set_name
         mesh = DGMultiMesh(solver, imported)
         @test keys(mesh.boundary_faces) == (set_name,)
         @test length(mesh.boundary_faces[set_name]) == set_size
@@ -46,8 +46,8 @@ end
 
 @timed_testset "read_gambit two boundary sets" begin
     imported = read_gambit(download_mesh("FS_K01022.neu"))
-    @test TrixiMaxwell.num_vertices(imported) == 309
-    @test TrixiMaxwell.num_elements(imported) == 1022
+    @test MaxwellTrixi.num_vertices(imported) == 309
+    @test MaxwellTrixi.num_elements(imported) == 1022
     @test set_sizes(imported) == Dict(1 => 70, 2 => 402)
     @test imported.face_set_names == Dict(1 => "Wall", 2 => "Far")
     mesh = DGMultiMesh(solver, imported)
@@ -58,14 +58,14 @@ end
 
 @timed_testset "read_gambit without boundary sets" begin
     imported = @test_logs (:warn, r"declares 1 boundary sets but contains 0") read_gambit(download_mesh("cubeK5.neu"))
-    @test TrixiMaxwell.num_elements(imported) == 5
+    @test MaxwellTrixi.num_elements(imported) == 5
     @test isempty(imported.face_sets)
     @test_throws ArgumentError DGMultiMesh(solver, imported)
     mesh = DGMultiMesh(solver, imported, allow_untagged_boundary = true)
     @test isempty(mesh.boundary_faces)
 
     imported = read_gambit(download_mesh("cubeK86.neu"))
-    @test TrixiMaxwell.num_elements(imported) == 86
+    @test MaxwellTrixi.num_elements(imported) == 86
     mesh = DGMultiMesh(solver, imported,
                        is_on_boundary = (; walls = x -> true))
     @test length(mesh.boundary_faces.walls) == num_boundary_faces(mesh)
@@ -73,8 +73,8 @@ end
 
 @timed_testset "read_gmsh tagged cube" begin
     imported = read_gmsh(download_mesh("3D_PEC.msh"))
-    @test TrixiMaxwell.num_vertices(imported) == 401
-    @test TrixiMaxwell.num_elements(imported) == 1227
+    @test MaxwellTrixi.num_vertices(imported) == 401
+    @test MaxwellTrixi.num_elements(imported) == 1227
     @test imported.group_names == Dict(1 => "Vacuum")
     @test set_sizes(imported) ==
           Dict(1 => 32, 2 => 32, 3 => 160, 4 => 160, 5 => 160, 6 => 160)
@@ -94,7 +94,7 @@ end
 
 @timed_testset "read_gmsh interior face sets and groups" begin
     imported = read_gmsh(download_mesh("3D_TFSF.msh"))
-    @test TrixiMaxwell.num_elements(imported) == 248
+    @test MaxwellTrixi.num_elements(imported) == 248
     @test sort(unique(imported.element_groups)) == [1, 2]
     @test count(==(1), imported.element_groups) == 100
     @test length(imported.face_sets) == 11
@@ -107,7 +107,7 @@ end
 
 @timed_testset "read_gmsh sphere in box" begin
     imported = read_gmsh(download_mesh("3D_RCS_SGBC_Sphere_Box_G1.msh"))
-    @test TrixiMaxwell.num_elements(imported) == 25084
+    @test MaxwellTrixi.num_elements(imported) == 25084
     @test sort(unique(imported.element_groups)) == [1, 2, 3, 4]
     @test count(==(4), imported.element_groups) == 50
     @test count(==(3), imported.element_groups) == 644
@@ -122,7 +122,7 @@ end
     path = download_mesh("3D_RCS_SGBC_Sphere_Box.geo")
     coarse = read_gmsh(path; size_factor = 2.0)
     fine = read_gmsh(path; size_factor = 1.5)
-    @test TrixiMaxwell.num_elements(fine) > 1.5 * TrixiMaxwell.num_elements(coarse)
+    @test MaxwellTrixi.num_elements(fine) > 1.5 * MaxwellTrixi.num_elements(coarse)
     @test coarse.group_names == Dict(1 => "vacuum")
     @test coarse.face_set_names == Dict(2 => "SMA", 3 => "TFSF", 4 => "SGBC")
     VX, VY, VZ = coarse.vertex_coordinates
@@ -157,7 +157,7 @@ end
     @test mesh.md.mesh_type isa StartUpDG.CurvedMesh
     @test keys(mesh.boundary_faces) == (:SMA,)
     md = mesh.md
-    in_sphere = [sum(abs2, TrixiMaxwell.element_centroid(md, element)) < 0.25
+    in_sphere = [sum(abs2, MaxwellTrixi.element_centroid(md, element)) < 0.25
                  for element in Base.OneTo(md.num_elements)]
     volume = sum(sum(view(md.wJq, :, element))
                  for element in Base.OneTo(md.num_elements) if in_sphere[element])
@@ -170,7 +170,7 @@ end
 
 @timed_testset "read_gmsh quadratic tetrahedra" begin
     imported = read_gmsh(download_mesh("3D_Resonant_Sphere.msh"))
-    @test TrixiMaxwell.num_elements(imported) == 271
+    @test MaxwellTrixi.num_elements(imported) == 271
     @test size(imported.EToV, 2) == 4
     @test set_sizes(imported) == Dict(1 => 172)
     mesh = DGMultiMesh(solver, imported)
@@ -178,7 +178,7 @@ end
 end
 @timed_testset "read_gmsh PEC sphere with TF/SF box" begin
     imported = read_gmsh(download_mesh("3D_RCS_PEC_1m.msh"))
-    @test TrixiMaxwell.num_elements(imported) == 15886
+    @test MaxwellTrixi.num_elements(imported) == 15886
     # the names do not match the triangle tags: the sphere surface carries tag 1,
     # the six box faces carry tags 3 to 8
     @test imported.face_set_names == Dict(2 => "sma", 3 => "pec", 4 => "tfsf")

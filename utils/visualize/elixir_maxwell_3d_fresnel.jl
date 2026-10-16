@@ -1,5 +1,5 @@
 # Figure or GLMakie video for examples/dgmulti_3d/elixir_maxwell_3d_fresnel.jl.
-using Trixi, TrixiMaxwell
+using Trixi, MaxwellTrixi
 using GLMakie, CairoMakie
 
 if !isdefined(@__MODULE__, :MaxwellVisuals)
@@ -12,12 +12,12 @@ frames = 241
 framerate = 30
 tspan = (0.0, 1.6)
 frame_times = video ? collect(range(tspan..., length = frames)) : [0.2, 0.5, 0.8]
-output_directory = joinpath(pkgdir(TrixiMaxwell), "docs", video ? "videos" : "figures")
+output_directory = joinpath(pkgdir(MaxwellTrixi), "docs", video ? "videos" : "figures")
 output_name = "fresnel"
 simulation_overrides = (;)
 
 video ? GLMakie.activate!() : CairoMakie.activate!()
-elixir = pkgdir(TrixiMaxwell, "examples", "dgmulti_3d", "elixir_maxwell_3d_fresnel.jl")
+elixir = pkgdir(MaxwellTrixi, "examples", "dgmulti_3d", "elixir_maxwell_3d_fresnel.jl")
 variables = ("Ey",)
 result = sample_elixir(elixir, frame_times; variables, point = (0.0, 0.25, 0.0),
                        metadata = (:epsilon_left, :epsilon_right),

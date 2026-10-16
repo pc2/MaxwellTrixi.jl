@@ -1,5 +1,5 @@
 # Figure or GLMakie video for examples/dgmulti_3d/elixir_maxwell_3d_tfsf.jl.
-using Trixi, TrixiMaxwell
+using Trixi, MaxwellTrixi
 using GLMakie, CairoMakie
 
 if !isdefined(@__MODULE__, :MaxwellVisuals)
@@ -12,12 +12,12 @@ frames = 241
 framerate = 30
 tspan = (0.0, 4.0)
 frame_times = video ? collect(range(tspan..., length = frames)) : [1.2, 1.6, 2.0]
-output_directory = joinpath(pkgdir(TrixiMaxwell), "docs", video ? "videos" : "figures")
+output_directory = joinpath(pkgdir(MaxwellTrixi), "docs", video ? "videos" : "figures")
 output_name = "tfsf"
 simulation_overrides = (;)
 
 video ? GLMakie.activate!() : CairoMakie.activate!()
-elixir = pkgdir(TrixiMaxwell, "examples", "dgmulti_3d", "elixir_maxwell_3d_tfsf.jl")
+elixir = pkgdir(MaxwellTrixi, "examples", "dgmulti_3d", "elixir_maxwell_3d_tfsf.jl")
 variables = ("Ez",)
 result = sample_elixir(elixir, frame_times; variables, slice = :xy,
                        overrides = simulation_overrides)

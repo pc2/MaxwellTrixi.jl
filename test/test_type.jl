@@ -2,7 +2,7 @@ module TestType
 
 using Test
 using Trixi
-using TrixiMaxwell
+using MaxwellTrixi
 using StaticArrays: SVector
 
 include("test_trixi.jl")
@@ -107,7 +107,7 @@ include("test_trixi.jl")
             @test typeof(@inferred energy_total(u_ll, equations)) == RealT
             @test eltype(@inferred source_terms_conductivity(u_ll, x, t, equations)) ==
                   RealT
-            @test eltype(@inferred TrixiMaxwell.with_passive_defaults(SVector(ntuple(_ -> one(RealT),
+            @test eltype(@inferred MaxwellTrixi.with_passive_defaults(SVector(ntuple(_ -> one(RealT),
                                                                                      6)),
                                                                       equations)) == RealT
             for boundary_condition in (boundary_condition_perfect_electric_conductor,
@@ -171,7 +171,7 @@ include("test_trixi.jl")
             @test eltype(@inferred combined(u, x, t, equations)) == RealT
             @test eltype(@inferred flux(u, x, equations)) == RealT
             @test eltype(@inferred flux_upwind(u, u, x, equations)) == RealT
-            @test eltype(@inferred TrixiMaxwell.with_passive_defaults(SVector(ntuple(_ -> one(RealT),
+            @test eltype(@inferred MaxwellTrixi.with_passive_defaults(SVector(ntuple(_ -> one(RealT),
                                                                                      6)),
                                                                       equations)) == RealT
             @test eltype(@inferred initial_condition_zero(x, t, equations)) == RealT

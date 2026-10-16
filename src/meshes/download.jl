@@ -37,7 +37,7 @@ const MESH_REGISTRY = Dict{String, String}("cubeK5.neu" => NODAL_DG_GRIDS * "cub
                                            "3D_RCS_SGBC_Sphere_Box.geo" => OPENSEMBA_INPUTS *
                                                                            "3D_RCS_SGBC_Sphere_Box.geo")
 
-default_mesh_directory() = joinpath(pkgdir(TrixiMaxwell), "meshes")
+default_mesh_directory() = joinpath(pkgdir(MaxwellTrixi), "meshes")
 
 """
     download_mesh(name; directory = default_mesh_directory())

@@ -1,6 +1,6 @@
 using OrdinaryDiffEqLowStorageRK
 using Trixi
-using TrixiMaxwell
+using MaxwellTrixi
 using StaticArrays: SVector
 using LinearAlgebra: norm
 
@@ -94,7 +94,7 @@ function (indicator::IndicatorSourceAndWave)(u, mesh, equations, dg, cache; kwar
     (; node_coordinates) = cache.elements
     inner = coordinates_max[1] - pml_thickness
     return map(Trixi.eachelement(dg, cache)) do element
-        center = TrixiMaxwell.element_centroid(node_coordinates, element)
+        center = MaxwellTrixi.element_centroid(node_coordinates, element)
         maximum(abs, center) > inner && return 0.0
         max(min(alpha_wave[element], indicator.wave_cap) *
             (alpha_energy[element] > indicator.energy_floor), alpha_source[element])

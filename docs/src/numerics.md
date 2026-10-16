@@ -1,7 +1,7 @@
 # DG discretization
 
 ```@meta
-CurrentModule = TrixiMaxwell
+CurrentModule = MaxwellTrixi
 ```
 
 ## Element-local flux form
@@ -75,7 +75,7 @@ solution.
 
 ```@docs
 ProjectedSourceTerms
-TrixiMaxwell.source_support
+MaxwellTrixi.source_support
 ```
 
 The wrapper overrides `Trixi.calc_sources!`. For a combined source, the term

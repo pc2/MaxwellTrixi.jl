@@ -1,5 +1,5 @@
 # Figure or GLMakie video for examples/dgmulti_3d/elixir_maxwell_3d_pml.jl.
-using Trixi, TrixiMaxwell
+using Trixi, MaxwellTrixi
 using GLMakie, CairoMakie
 
 if !isdefined(@__MODULE__, :MaxwellVisuals)
@@ -12,12 +12,12 @@ frames = 241
 framerate = 30
 tspan = (0.0, 8.0)
 frame_times = video ? collect(range(tspan..., length = frames)) : [4.0]
-output_directory = joinpath(pkgdir(TrixiMaxwell), "docs", video ? "videos" : "figures")
+output_directory = joinpath(pkgdir(MaxwellTrixi), "docs", video ? "videos" : "figures")
 output_name = "pml"
 simulation_overrides = (;)
 
 video ? GLMakie.activate!() : CairoMakie.activate!()
-elixir = pkgdir(TrixiMaxwell, "examples", "dgmulti_3d", "elixir_maxwell_3d_pml.jl")
+elixir = pkgdir(MaxwellTrixi, "examples", "dgmulti_3d", "elixir_maxwell_3d_pml.jl")
 variables = ("Ez",)
 dipole = HertzianDipole((0.0, 0.0, 0.0), (0.0, 0.0, 1.0),
                         0.1, GaussianPulse(0.4; delay = 1.4))

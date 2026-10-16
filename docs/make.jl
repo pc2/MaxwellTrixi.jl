@@ -1,7 +1,7 @@
-using Documenter, Trixi, TrixiMaxwell
+using Documenter, Trixi, MaxwellTrixi
 
-DocMeta.setdocmeta!(TrixiMaxwell, :DocTestSetup,
-                    :(using Trixi, TrixiMaxwell); recursive = true)
+DocMeta.setdocmeta!(MaxwellTrixi, :DocTestSetup,
+                    :(using Trixi, MaxwellTrixi); recursive = true)
 
 # Pages reference committed figures. Use matching videos when available;
 # Documenter renders Markdown images ending in .mp4 as native video players.
@@ -31,7 +31,7 @@ mktempdir() do temporary
     end
 
     makedocs(; root = @__DIR__, source, build = joinpath(@__DIR__, "build"),
-             sitename = "TrixiMaxwell.jl", modules = [TrixiMaxwell],
+             sitename = "MaxwellTrixi.jl", modules = [MaxwellTrixi],
              checkdocs = :exports,
              format = Documenter.HTML(; prettyurls = true, edit_link = nothing,
                                       size_threshold = 500_000),

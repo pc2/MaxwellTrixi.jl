@@ -1,7 +1,7 @@
 # Equations and materials
 
 ```@meta
-CurrentModule = TrixiMaxwell
+CurrentModule = MaxwellTrixi
 ```
 
 ## Curl equations and normalization
@@ -105,7 +105,7 @@ includes conductivity; do not add the same conductivity source a second time.
 For example:
 
 ```jldoctest
-julia> using TrixiMaxwell
+julia> using MaxwellTrixi
 
 julia> equations = MaxwellEquations3D(epsilon = 4.0);
 

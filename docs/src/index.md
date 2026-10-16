@@ -1,12 +1,12 @@
-# TrixiMaxwell.jl
+# MaxwellTrixi.jl
 
-TrixiMaxwell implements three-dimensional Maxwell equations in Trixi.jl. The
+MaxwellTrixi implements three-dimensional Maxwell equations in Trixi.jl. The
 unknowns are the electric and magnetic fields. Optional state components carry
 material parameters, polarization currents and PML auxiliary fields.
 
 The implementation follows Trixi's equations × mesh × solver structure. Trixi
 provides the DG operators, time integration interface, CFL control and adaptive
-mesh refinement. TrixiMaxwell adds electromagnetic fluxes, material models,
+mesh refinement. MaxwellTrixi adds electromagnetic fluxes, material models,
 excitation, boundary conditions, mesh import and diagnostics.
 
 ## Reading the implementation
@@ -32,8 +32,8 @@ julia --project=examples
 Then run an elixir:
 
 ```julia
-using Trixi, TrixiMaxwell, OrdinaryDiffEqLowStorageRK
-trixi_include(pkgdir(TrixiMaxwell, "examples", "dgmulti_3d",
+using Trixi, MaxwellTrixi, OrdinaryDiffEqLowStorageRK
+trixi_include(pkgdir(MaxwellTrixi, "examples", "dgmulti_3d",
                      "elixir_maxwell_3d_cavity.jl"))
 ```
 

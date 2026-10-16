@@ -1,5 +1,5 @@
 # Figure or GLMakie video for examples/dgmulti_3d/elixir_maxwell_3d_pec_sphere.jl.
-using Trixi, TrixiMaxwell
+using Trixi, MaxwellTrixi
 using GLMakie, CairoMakie
 
 if !isdefined(@__MODULE__, :MaxwellVisuals)
@@ -12,12 +12,12 @@ frames = 241
 framerate = 30
 tspan = (0.0, 11.0)
 frame_times = video ? collect(range(tspan..., length = frames)) : [3.5, 5.5]
-output_directory = joinpath(pkgdir(TrixiMaxwell), "docs", video ? "videos" : "figures")
+output_directory = joinpath(pkgdir(MaxwellTrixi), "docs", video ? "videos" : "figures")
 output_name = "pec_sphere"
 simulation_overrides = (;)
 
 video ? GLMakie.activate!() : CairoMakie.activate!()
-elixir = pkgdir(TrixiMaxwell, "examples", "dgmulti_3d", "elixir_maxwell_3d_pec_sphere.jl")
+elixir = pkgdir(MaxwellTrixi, "examples", "dgmulti_3d", "elixir_maxwell_3d_pec_sphere.jl")
 variables = ("Ex",)
 result = sample_elixir(elixir, frame_times; variables, overrides = simulation_overrides)
 results = [result]

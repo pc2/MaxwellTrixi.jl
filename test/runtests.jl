@@ -1,11 +1,11 @@
 using Trixi
-using TrixiMaxwell
+using MaxwellTrixi
 using Test
 
 # CI jobs set `TRIXI_TEST` to select a subset of the tests.
 const TRIXI_TEST = get(ENV, "TRIXI_TEST", "all")
 
-@time @testset "TrixiMaxwell.jl tests" begin
+@time @testset "MaxwellTrixi.jl tests" begin
     @time if TRIXI_TEST == "all" || TRIXI_TEST == "unit"
         include("test_unit.jl")
     end
@@ -29,7 +29,7 @@ const TRIXI_TEST = get(ENV, "TRIXI_TEST", "all")
     @time if TRIXI_TEST == "all" || TRIXI_TEST == "upstream"
         @testset "Namespace conflicts" begin
             for name in names(Trixi)
-                @test !(name in names(TrixiMaxwell))
+                @test !(name in names(MaxwellTrixi))
             end
         end
     end

@@ -1,6 +1,6 @@
 using OrdinaryDiffEqLowStorageRK
 using Trixi
-using TrixiMaxwell
+using MaxwellTrixi
 
 ###############################################################################
 # semidiscretization of the Maxwell equations in a cavity filled with a Drude medium

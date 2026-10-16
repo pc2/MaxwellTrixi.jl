@@ -1,6 +1,6 @@
 using OrdinaryDiffEqLowStorageRK
 using Trixi
-using TrixiMaxwell
+using MaxwellTrixi
 using StaticArrays: SVector
 
 ###############################################################################
@@ -70,7 +70,7 @@ function (indicator::IndicatorBoxAndWave)(u, mesh, equations, dg, cache; kwargs.
     alpha_energy = indicator.energy(u, mesh, equations, dg, cache; kwargs...)
     (; node_coordinates) = cache.elements
     return map(Trixi.eachelement(dg, cache)) do element
-        center = TrixiMaxwell.element_centroid(node_coordinates, element)
+        center = MaxwellTrixi.element_centroid(node_coordinates, element)
         on_box = abs(maximum(abs, center) - indicator.half_width) < indicator.band
         on_box ? 1.0 :
         alpha_wave[element] * (alpha_energy[element] > indicator.energy_floor)

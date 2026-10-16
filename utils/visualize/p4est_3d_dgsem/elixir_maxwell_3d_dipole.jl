@@ -1,5 +1,5 @@
 # Figure or GLMakie video for examples/p4est_3d_dgsem/elixir_maxwell_3d_dipole.jl.
-using Trixi, TrixiMaxwell
+using Trixi, MaxwellTrixi
 using GLMakie, CairoMakie
 using StaticArrays: SVector
 
@@ -13,12 +13,12 @@ frames = 241
 framerate = 30
 tspan = (0.0, 4.0)
 frame_times = video ? collect(range(tspan..., length = frames)) : [2.0]
-output_directory = joinpath(pkgdir(TrixiMaxwell), "docs", video ? "videos" : "figures")
+output_directory = joinpath(pkgdir(MaxwellTrixi), "docs", video ? "videos" : "figures")
 output_name = "dipole_p4est"
 simulation_overrides = (;)
 
 video ? GLMakie.activate!() : CairoMakie.activate!()
-elixir = pkgdir(TrixiMaxwell, "examples", "p4est_3d_dgsem", "elixir_maxwell_3d_dipole.jl")
+elixir = pkgdir(MaxwellTrixi, "examples", "p4est_3d_dgsem", "elixir_maxwell_3d_dipole.jl")
 variables = ("Ez",)
 xs = range(0.3, 0.95, length = 60)
 probe = (; xs, points = [SVector(x, 0.0, 0.0) for x in xs],

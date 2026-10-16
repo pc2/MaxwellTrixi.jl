@@ -1,9 +1,9 @@
-module TrixiMaxwellGmshExt
+module MaxwellTrixiGmshExt
 
-using TrixiMaxwell: TrixiMaxwell, ImportedMesh
+using MaxwellTrixi: MaxwellTrixi, ImportedMesh
 using Gmsh: gmsh
 
-function TrixiMaxwell._read_gmsh(path::AbstractString; size_factor = 1.0, order = 1,
+function MaxwellTrixi._read_gmsh(path::AbstractString; size_factor = 1.0, order = 1,
                                  verbose = false)
     order in (1, 2) || throw(ArgumentError("order must be 1 or 2, got $order"))
     isfile(path) || throw(ArgumentError("file $path does not exist"))

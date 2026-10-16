@@ -2,11 +2,11 @@ module TestExamplesDGSEM3D
 
 using Test
 using Trixi
-using TrixiMaxwell
+using MaxwellTrixi
 
 include("test_trixi.jl")
 
-EXAMPLES_DIR = pkgdir(TrixiMaxwell, "examples")
+EXAMPLES_DIR = pkgdir(MaxwellTrixi, "examples")
 
 # Start with a clean environment: remove Trixi.jl output directory if it exists
 outdir = "out"
@@ -158,7 +158,7 @@ end
 @trixi_testset "p4est_3d_dgsem/elixir_maxwell_3d_dipole.jl" begin
     @test_trixi_include(joinpath(EXAMPLES_DIR, "p4est_3d_dgsem",
                                  "elixir_maxwell_3d_dipole.jl"))
-    using TrixiMaxwell: electric_field, magnetic_field
+    using MaxwellTrixi: electric_field, magnetic_field
     using LinearAlgebra: norm
     probes = [SVector(0.5, 0.0, 0.0), SVector(0.0, 0.5, 0.0), SVector(0.0, 0.0, 0.5),
         SVector(0.35, 0.35, 0.0), SVector(0.3, 0.2, 0.4), SVector(-0.4, 0.1, -0.5)]
@@ -176,7 +176,7 @@ end
 end
 
 @trixi_testset "p4est_3d_dgsem/elixir_maxwell_3d_pml.jl" begin
-    using Trixi, TrixiMaxwell
+    using Trixi, MaxwellTrixi
     # coarser mesh with a two-cell layer and a source the hexahedra resolve;
     # after the pulse has passed, the energy left in the box measures the
     # reflections from the layer
@@ -281,7 +281,7 @@ end
 end
 
 @trixi_testset "p4est_3d_dgsem/elixir_maxwell_3d_fresnel.jl (convergence)" begin
-    using Trixi, TrixiMaxwell
+    using Trixi, MaxwellTrixi
     eocs, _ = Trixi.convergence_test(@__MODULE__,
                                      joinpath(EXAMPLES_DIR, "p4est_3d_dgsem",
                                               "elixir_maxwell_3d_fresnel.jl"),
@@ -292,7 +292,7 @@ end
 end
 
 @trixi_testset "p4est_3d_dgsem/elixir_maxwell_3d_tfsf.jl" begin
-    using Trixi, TrixiMaxwell
+    using Trixi, MaxwellTrixi
     # the pulse centre is inside the box at t = 1.5
     @test_trixi_include(joinpath(EXAMPLES_DIR, "p4est_3d_dgsem",
                                  "elixir_maxwell_3d_tfsf.jl"),
@@ -313,7 +313,7 @@ end
                       energy_total(u_node, equations_) /
                       inverse_jacobian[i, j, k, element]
         end
-        if is_total_field(TrixiMaxwell.element_centroid(node_coordinates, element))
+        if is_total_field(MaxwellTrixi.element_centroid(node_coordinates, element))
             energy_in += energy
         else
             energy_out += energy
@@ -334,7 +334,7 @@ end
 end
 
 @trixi_testset "p4est_3d_dgsem/elixir_maxwell_3d_pml_amr.jl" begin
-    using Trixi, TrixiMaxwell
+    using Trixi, MaxwellTrixi
     @test_trixi_include(joinpath(EXAMPLES_DIR, "p4est_3d_dgsem",
                                  "elixir_maxwell_3d_pml_amr.jl"),
                         trees_per_dimension=(4, 4, 4), pml_thickness=0.75,
@@ -360,7 +360,7 @@ end
 end
 
 @trixi_testset "p4est_3d_dgsem/elixir_maxwell_3d_tfsf_amr.jl" begin
-    using Trixi, TrixiMaxwell
+    using Trixi, MaxwellTrixi
     @test_trixi_include(joinpath(EXAMPLES_DIR, "p4est_3d_dgsem",
                                  "elixir_maxwell_3d_tfsf_amr.jl"),
                         tspan=(0.0, 1.5))
@@ -381,7 +381,7 @@ end
                       energy_total(u_node, equations_) /
                       inverse_jacobian[i, j, k, element]
         end
-        if is_total_field(TrixiMaxwell.element_centroid(node_coordinates, element))
+        if is_total_field(MaxwellTrixi.element_centroid(node_coordinates, element))
             energy_in += energy
         else
             energy_out += energy
@@ -393,7 +393,7 @@ end
 end
 
 @trixi_testset "cavity convergence on all mesh types" begin
-    using Trixi, TrixiMaxwell
+    using Trixi, MaxwellTrixi
     # Ez, Hx, Hy carry the mode; Ex, Ey, Hz are zero in the exact solution
     mode_components = (3, 4, 5)
     polydeg = 2

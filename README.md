@@ -1,4 +1,4 @@
-# TrixiMaxwell.jl
+# MaxwellTrixi.jl
 
 Discontinuous Galerkin time-domain solver for Maxwell's equations built on [Trixi.jl](https://github.com/trixi-framework/Trixi.jl).
 
@@ -40,11 +40,11 @@ The package currently needs Trixi.jl `main`, which includes 3D `DGMulti` slicing
 ```julia
 using Pkg
 Pkg.add(url = "https://github.com/trixi-framework/Trixi.jl.git", rev = "main")
-Pkg.develop(path = "path/to/TrixiMaxwell.jl")
+Pkg.develop(path = "path/to/MaxwellTrixi.jl")
 Pkg.instantiate()
 ```
 
-Reading Gmsh files needs the optional `Gmsh` package, which activates the `TrixiMaxwellGmshExt` extension:
+Reading Gmsh files needs the optional `Gmsh` package, which activates the `MaxwellTrixiGmshExt` extension:
 
 ```julia
 Pkg.add("Gmsh")
@@ -55,8 +55,8 @@ An ODE integrator is required to run elixirs, for example `OrdinaryDiffEqLowStor
 ## Running an elixir
 
 ```julia
-using Trixi, TrixiMaxwell, OrdinaryDiffEqLowStorageRK
-trixi_include(pkgdir(TrixiMaxwell, "examples", "dgmulti_3d", "elixir_maxwell_3d_cavity.jl"))
+using Trixi, MaxwellTrixi, OrdinaryDiffEqLowStorageRK
+trixi_include(pkgdir(MaxwellTrixi, "examples", "dgmulti_3d", "elixir_maxwell_3d_cavity.jl"))
 ```
 
 Keyword arguments of `trixi_include` override the variables of the elixir, for example `tspan = (0.0, 0.5)` or `polydeg = 2`.
@@ -165,7 +165,7 @@ See [Building and publishing](docs/src/building.md) for editing and build instru
 
 ```julia
 using Pkg
-Pkg.test("TrixiMaxwell")
+Pkg.test("MaxwellTrixi")
 ```
 
 ## Figures

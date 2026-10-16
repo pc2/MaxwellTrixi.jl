@@ -1,4 +1,4 @@
-module TrixiMaxwell
+module MaxwellTrixi
 
 using StaticArrays: SVector, SMatrix
 using LinearAlgebra: norm, dot, cross

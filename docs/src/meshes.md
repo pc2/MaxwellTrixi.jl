@@ -1,7 +1,7 @@
 # Meshes and output
 
 ```@meta
-CurrentModule = TrixiMaxwell
+CurrentModule = MaxwellTrixi
 ```
 
 ## Import and geometry
@@ -17,9 +17,9 @@ ImportedMesh
 read_gambit
 read_gmsh
 Trixi.DGMultiMesh(::Trixi.DGMulti{3}, ::ImportedMesh)
-TrixiMaxwell.face_set_key
-TrixiMaxwell.boundary_face_sets
-TrixiMaxwell.MESH_REGISTRY
+MaxwellTrixi.face_set_key
+MaxwellTrixi.boundary_face_sets
+MaxwellTrixi.MESH_REGISTRY
 download_mesh
 ```
 

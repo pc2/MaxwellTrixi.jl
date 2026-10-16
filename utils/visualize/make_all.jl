@@ -1,5 +1,5 @@
 # Run the scenario files themselves, so single and batch output follow one path.
-using Trixi, TrixiMaxwell
+using Trixi, MaxwellTrixi
 include("common.jl")
 
 scripts = sort(filter(path -> startswith(basename(path), "elixir_maxwell_") &&
