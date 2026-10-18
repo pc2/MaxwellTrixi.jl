@@ -59,6 +59,8 @@ start() {
     output pipeline_id "$id"
     output web_url "$(jq -r .web_url <<< "$response")"
     output sha "$(jq -r .sha <<< "$response")"
+    echo "::notice title=GitLab pipeline $id::$(jq -r .web_url <<< "$response")"
+    { pipeline_heading "$id" "$response"; jobs_table "$id"; } | summary
 }
 
 jobs_table() {
@@ -68,6 +70,10 @@ jobs_table() {
             if .duration then ((.duration / 60) | floor | tostring) + " min" else "" end) |")'
 }
 
+jobs_log() {
+    get "pipelines/$1/jobs?per_page=100" | jq -r '.[] | "    \(.status)\t\(.name)\t\(.web_url)"'
+}
+
 pipeline_heading() {
     echo "### GitLab pipeline [$1]($(jq -r .web_url <<< "$2")): $(jq -r .status <<< "$2")"
 }
@@ -75,10 +81,13 @@ pipeline_heading() {
 wait_for() {
     local id=$1 max_minutes=$2 pipeline status deadline
     deadline=$(( $(date +%s) + max_minutes * 60 ))
+    pipeline=$(get "pipelines/$id")
+    echo "::notice title=GitLab pipeline $id::$(jq -r .web_url <<< "$pipeline")"
     while :; do
         pipeline=$(get "pipelines/$id")
         status=$(jq -r .status <<< "$pipeline")
-        echo "$(date -u +%H:%M) pipeline $id: $status"
+        echo "$(date -u +%H:%M) pipeline $id: $status  $(jq -r .web_url <<< "$pipeline")"
+        jobs_log "$id"
         case $status in
             success | failed | canceled | skipped)
                 output finished true
