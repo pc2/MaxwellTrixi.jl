@@ -19,6 +19,10 @@ variables:
 
 default:
   tags: [otus-slurm]
+  # Jacamar authenticates each job with this token
+  id_tokens:
+    CI_JOB_JWT:
+      aud: https://git.uni-paderborn.de
   before_script:
     - test -n "$CI_DEPOT_ROOT" || { echo "CI_DEPOT_ROOT is not set"; exit 1; }
     - module load lang/JuliaHPC/1.13.1-foss-2025a
