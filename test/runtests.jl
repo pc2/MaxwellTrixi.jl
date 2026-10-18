@@ -33,4 +33,9 @@ const TRIXI_TEST = get(ENV, "TRIXI_TEST", "all")
             end
         end
     end
+
+    # full-resolution runs for the cluster, one case per process
+    @time if startswith(TRIXI_TEST, "hpc_")
+        include("test_hpc.jl")
+    end
 end

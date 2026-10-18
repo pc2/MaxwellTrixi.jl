@@ -168,6 +168,11 @@ using Pkg
 Pkg.test("MaxwellTrixi")
 ```
 
+Full-resolution validation runs go to the Otus cluster through a GitLab
+mirror, started from **Actions → HPC**. See
+[Building and publishing](docs/src/building.md) for the cases, the result
+files and the setup.
+
 ## Figures
 
 The figures below are produced by the scenario scripts in `utils/visualize/` using

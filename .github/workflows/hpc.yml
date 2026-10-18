@@ -1,0 +1,119 @@
+name: HPC
+
+# Runs the long simulations on the Otus Slurm runner through the GitLab
+# pull mirror and brings the results back. Secrets: GITLAB_TOKEN (project
+# access token, scope read_api) and GITLAB_TRIGGER_TOKEN. Variables:
+# GITLAB_PROJECT_ID, optionally GITLAB_HOST.
+
+on:
+  workflow_dispatch:
+    inputs:
+      families:
+        description: Job families to run (comma separated from validation, sweep, scaling)
+        type: string
+        default: validation
+      pipeline_id:
+        description: Attach to a running GitLab pipeline instead of starting one
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+  statuses: write
+  checks: write
+  actions: write
+
+env:
+  GITLAB_HOST: ${{ vars.GITLAB_HOST || 'git.uni-paderborn.de' }}
+  GITLAB_PROJECT_ID: ${{ vars.GITLAB_PROJECT_ID }}
+  GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+
+jobs:
+  start:
+    name: Start on the mirror
+    if: inputs.pipeline_id == ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    outputs:
+      pipeline_id: ${{ steps.start.outputs.pipeline_id }}
+      web_url: ${{ steps.start.outputs.web_url }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Wait for the mirror to fetch the commit
+        run: ci/gitlab_pipeline.sh mirrored "$GITHUB_SHA" 60
+      - name: Start the pipeline
+        id: start
+        run: ci/gitlab_pipeline.sh start "$GITHUB_REF_NAME" "${{ inputs.families }}" "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+        env:
+          GITLAB_TRIGGER_TOKEN: ${{ secrets.GITLAB_TRIGGER_TOKEN }}
+      - name: Commit status
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/statuses/${{ steps.start.outputs.sha || github.sha }}" -f state=pending -f context=gitlab/hpc \
+            -f target_url="${{ steps.start.outputs.web_url }}" -f description="pipeline ${{ steps.start.outputs.pipeline_id }} started"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  wait:
+    name: Wait for Slurm
+    needs: start
+    if: ${{ !cancelled() && (needs.start.result == 'success' || inputs.pipeline_id != '') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 345
+    env:
+      PIPELINE_ID: ${{ inputs.pipeline_id || needs.start.outputs.pipeline_id }}
+    outputs:
+      finished: ${{ steps.wait.outputs.finished }}
+      pipeline_id: ${{ env.PIPELINE_ID }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Poll the pipeline
+        id: wait
+        run: ci/gitlab_pipeline.sh wait "$PIPELINE_ID" 330
+      - name: Hand over to a new run
+        if: steps.wait.outputs.finished != 'true'
+        run: |
+          gh workflow run hpc.yml --ref "$GITHUB_REF_NAME" -f families="${{ inputs.families }}" -f pipeline_id="$PIPELINE_ID"
+          echo "Pipeline $PIPELINE_ID still running, a new run of this workflow continues waiting." >> "$GITHUB_STEP_SUMMARY"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  collect:
+    name: Collect results
+    needs: wait
+    if: ${{ !cancelled() && needs.wait.outputs.finished == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PIPELINE_ID: ${{ needs.wait.outputs.pipeline_id }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: julia-actions/setup-julia@v3
+        with:
+          version: '1.13'
+      - name: Download artifacts and summarize
+        id: collect
+        run: ci/gitlab_pipeline.sh collect "$PIPELINE_ID"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: hpc-results-${{ env.PIPELINE_ID }}
+          path: results
+          if-no-files-found: warn
+          retention-days: 90
+      - uses: dorny/test-reporter@v2
+        if: always()
+        with:
+          name: HPC checks
+          path: results/**/junit.xml
+          reporter: java-junit
+          fail-on-error: false
+          fail-on-empty: false
+      - name: Commit status
+        if: always()
+        run: |
+          state=failure
+          if [ "${{ steps.collect.outputs.status }}" = success ]; then state=success; fi
+          gh api "repos/$GITHUB_REPOSITORY/statuses/${{ steps.collect.outputs.sha || github.sha }}" -f state=$state -f context=gitlab/hpc \
+            -f target_url="${{ steps.collect.outputs.web_url }}" -f description="pipeline $PIPELINE_ID ${{ steps.collect.outputs.status }}"
+        env:
+          GH_TOKEN: ${{ github.token }}

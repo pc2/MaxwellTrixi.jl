@@ -53,3 +53,81 @@ ordinary builds use figures again.
 
 Enable **Settings → Pages → Build and deployment → Source: GitHub Actions** in
 the repository once, then push the workflow and documentation sources.
+
+## Cluster runs
+
+Long simulations run on the Otus cluster through the GitLab mirror
+`git.uni-paderborn.de/pc2-ci/julia/MaxwellTrixi.jl` and its Slurm runner. The
+cases are testsets in `test/test_hpc.jl`: full-resolution elixirs with the
+reference checks of the test suite, selected by `TRIXI_TEST=hpc_<case>`, and
+`HPC_VARIANT` for resolution sweeps such as `h15` or `p4`, thread counts such
+as `t8`, or `short` for a shortened time span. Each run writes
+`results/<case>/<variant>/`: `junit.xml` with one entry per check,
+`metrics.txt` with the errors against the references and Trixi's performance
+indicators in OpenMetrics format, and `data.csv` with the spectrum next to its
+reference. Locally, from the repository root:
+
+```sh
+julia --project=hpc -e 'using Pkg; Pkg.instantiate()'
+mkdir -p results/mie/default
+TRIXI_TEST=hpc_mie julia --project=hpc -e 'using TestReports; TestReports.test("MaxwellTrixi"; logfilepath = "results/mie/default", logfilename = "junit.xml")'
+```
+
+`hpc/Project.toml` pins TestReports to its fix for Julia 1.13 until the 1.4.1
+release.
+
+`.gitlab-ci.yml` runs `prepare`, which fills the Julia depot and downloads the
+meshes, then one Slurm job per case. `FAMILIES` selects `validation`, `sweep`
+or `scaling`. `SCHEDULER_BASE` carries the account, partition and
+memory, each job adds its walltime and cores. Pipelines run only when started
+from GitHub or from the GitLab UI, never on pushes to the mirror. The GitLab
+project needs the CI/CD variable `CI_DEPOT_ROOT`, an absolute path on the
+parallel file system.
+
+**Actions → HPC → Run workflow** waits until the pull mirror has fetched the
+commit, starts the pipeline with the chosen families and waits for it; after
+5.5 hours, the
+limit of a GitHub job, it hands over to a new run of itself. When the
+pipeline has finished, the run downloads the artifacts and publishes a check
+run from the JUnit files, a results table in the run summary, the raw results
+as a run artifact and the commit status `gitlab/hpc` linking to the pipeline.
+`ci/gitlab_pipeline.sh` holds the GitLab calls and works by hand with the
+same variables.
+
+### Setup
+
+On the GitLab project, once:
+
+1. **Settings → Repository → Mirroring repositories**: pull from the GitHub
+   repository. Runs from feature branches need the mirror to fetch all
+   branches, not only protected ones.
+2. **Settings → Access tokens**: add a token with role Reporter and the scope
+   `read_api`. It polls the pipeline and downloads artifacts, and can do
+   nothing else.
+3. **Settings → CI/CD → Pipeline trigger tokens**: add a token. It can only
+   start pipelines.
+4. **Settings → CI/CD → Variables**: add `CI_DEPOT_ROOT` with an absolute
+   path on the parallel file system, for example
+   `/scratch/<project>/<user>/MaxwellTrixi-ci`. The runner does not
+   expand `$PC2PFS` here. Leave "Protect variable" off.
+5. Note the project ID from the project overview page (three circles in the top right).
+
+On GitHub, from the repository, each `gh secret set` prompts for its value:
+
+```sh
+gh secret set GITLAB_TOKEN
+gh secret set GITLAB_TRIGGER_TOKEN
+gh variable set GITLAB_PROJECT_ID --body <id>
+```
+
+`GITLAB_HOST` defaults to `git.uni-paderborn.de` and can be overridden as a
+variable. Nothing GitHub-related is stored on GitLab.
+
+To run the cluster side alone, start a pipeline under **Build → Pipelines →
+New pipeline** with the variable `FAMILIES` once the mirror has fetched the
+commit. The full loop from GitHub:
+
+```sh
+gh workflow run hpc.yml -f families=validation
+gh run watch
+```

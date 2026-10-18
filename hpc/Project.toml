@@ -1,0 +1,12 @@
+[deps]
+MaxwellTrixi = "e32c1b01-4392-4ccd-ba64-a479455ba269"
+TestReports = "dcd651b4-b50a-5b6b-8f22-87e9f253a252"
+
+[compat]
+TestReports = "1.4"
+julia = "1.13"
+
+[sources]
+MaxwellTrixi = {path = ".."}
+# JuliaTesting/TestReports.jl#137 until 1.4.1 is released
+TestReports = {url = "https://github.com/kleinschmidt/TestReports.jl.git", rev = "6ca3275553de90f1314916e267fcb652979ede66"}
