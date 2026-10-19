@@ -99,7 +99,8 @@ jobs_log() {
 
 # Check runs on the pipeline's commit: one per GitLab job and one for the
 # pipeline with the table, updated while polling. They need gh with GH_TOKEN
-# inside GitHub Actions and are skipped otherwise.
+# inside GitHub Actions and are skipped otherwise. GitHub points their
+# Details link at the workflow run, so the GitLab links go into the text.
 checks_enabled() {
     [ -n "${GH_TOKEN:-}" ] && [ -n "${GITHUB_REPOSITORY:-}" ]
 }
@@ -144,14 +145,16 @@ checks_sync() {
     while IFS=$'\t' read -r name job_status url duration; do
         state=$(check_state "$job_status")
         if [ "${check_states[$name]:-}" = "$job_status" ]; then continue; fi
-        check_update "gitlab/$name" "$sha" "$state" "$url" "$job_status" "GitLab job $job_status${duration:+, $duration}"
+        check_update "gitlab/$name" "$sha" "$state" "$url" "$job_status" "[$name]($url): $job_status${duration:+, $duration}"
         check_states[$name]=$job_status
         changed=true
     done < <(jq -r '.[] | [.name, .status, .web_url,
         (if .duration then ((.duration / 60) | floor | tostring) + " min" else "" end)] | @tsv' <<< "$jobs")
     if [ "$changed" = true ] || [ "${check_states[pipeline]:-}" != "$status" ]; then
         check_update "gitlab/pipeline" "$sha" "$(check_state "$status")" "$(jq -r .web_url <<< "$pipeline")" \
-            "pipeline $id $status" "$(jobs_table "$jobs")"
+            "pipeline $id $status" "$(pipeline_heading "$id" "$pipeline")
+
+$(jobs_table "$jobs")"
         check_states[pipeline]=$status
     fi
 }
