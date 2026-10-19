@@ -68,13 +68,11 @@ indicators in OpenMetrics format, and `data.csv` with the spectrum next to its
 reference. Locally, from the repository root:
 
 ```sh
-julia --project=hpc -e 'using Pkg; Pkg.instantiate()'
-mkdir -p results/mie/default
-TRIXI_TEST=hpc_mie julia --project=hpc -e 'using TestReports; TestReports.test("MaxwellTrixi"; logfilepath = "results/mie/default", logfilename = "junit.xml")'
+TRIXI_TEST=hpc_mie julia --project -e 'using Pkg; Pkg.test()'
 ```
 
-`hpc/Project.toml` pins TestReports to its fix for Julia 1.13 until the 1.4.1
-release.
+The JUnit file comes from TestReports.jl inside the test process; the test
+project pins it to its fix for Julia 1.13 until the 1.4.1 release.
 
 `.gitlab-ci.yml` runs `prepare`, which fills the Julia depot, builds the
 MPI wrapper and downloads the meshes, then one Slurm job per case. `FAMILIES` selects `validation`, `sweep`

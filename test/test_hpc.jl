@@ -1,15 +1,16 @@
 module TestHPC
 
 using Test
+using TestReports
 using Trixi
 using MaxwellTrixi
 using DelimitedFiles: writedlm
 
 # Full-resolution simulations for the cluster. TRIXI_TEST=hpc_<case> selects
 # the case and HPC_VARIANT one of its variants: `short` only exercises the
-# mechanics, t<n> runs the default setup on n threads. Besides the test
-# results, each run writes metrics.txt in OpenMetrics format and data.csv to
-# <case>/<variant>/ below HPC_RESULTS_DIR, by default results/.
+# mechanics, t<n> runs the default setup on n threads. Each run writes
+# junit.xml with the test results, metrics.txt in OpenMetrics format and
+# data.csv to <case>/<variant>/ below HPC_RESULTS_DIR, by default results/.
 
 const CASE = chopprefix(ENV["TRIXI_TEST"], "hpc_")
 const VARIANT = get(ENV, "HPC_VARIANT", "default")
@@ -202,17 +203,26 @@ println("HPC case $CASE, variant $VARIANT, $(Threads.nthreads()) threads: $elixi
 wall_time = @elapsed trixi_include(@__MODULE__, elixir; maxiters = MAXITERS,
                                    overrides(CASE, VARIANT)...)
 
-@testset "hpc $CASE $VARIANT" begin
-    @test string(sol.retcode) == "Success"
-    VARIANT == "short" || CASES[CASE].check()
-end
-
-@testset "hpc $CASE $VARIANT performance" begin
-    record_performance(semi, sol, wall_time)
+report_set = @testset ReportingTestSet "hpc $CASE $VARIANT" begin
+    @testset "checks" begin
+        @test string(sol.retcode) == "Success"
+        VARIANT == "short" || CASES[CASE].check()
+    end
+    @testset "performance" begin
+        record_performance(semi, sol, wall_time)
+    end
 end
 
 mkpath(RESULTS_DIR)
 write(joinpath(RESULTS_DIR, "metrics.txt"), join(METRICS, '\n') * '\n')
+open(joinpath(RESULTS_DIR, "junit.xml"), "w") do io
+    print(io, report(report_set))
+end
 println("results in $RESULTS_DIR")
+
+# a reporting testset is not counted by its parent, so its outcome is asserted here
+@testset "hpc $CASE $VARIANT passed" begin
+    @test !any_problems(report_set)
+end
 
 end # module

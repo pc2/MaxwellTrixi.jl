@@ -51,11 +51,10 @@ prepare:
     - export MPITRAMPOLINE_LIB=$(ls "$CI_DEPOT_ROOT"/mpiwrapper/lib*/libmpiwrapper.so | head -n 1)
     - julia --project -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
     - julia --project=test -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
-    - julia --project=hpc -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
     - julia --project=test -e 'using Trixi; Trixi.MPI.versioninfo()'
     - julia --project -e 'using MaxwellTrixi; foreach(download_mesh, keys(MaxwellTrixi.MESH_REGISTRY))'
   artifacts:
-    paths: [Manifest.toml, test/Manifest.toml, hpc/Manifest.toml, meshes/]
+    paths: [Manifest.toml, test/Manifest.toml, meshes/]
     expire_in: 1 week
 
 # One case per job. CASE selects the testset in test/test_hpc.jl, VARIANT one
@@ -69,7 +68,7 @@ prepare:
     - export RESULTS=results/$CASE/$VARIANT
     - mkdir -p $RESULTS
     - echo "case $CASE, variant $VARIANT, $JULIA_NUM_THREADS threads, Slurm job $SLURM_JOB_ID"
-    - TRIXI_TEST=hpc_$CASE HPC_VARIANT=$VARIANT julia --project=hpc -e 'using TestReports; TestReports.test("MaxwellTrixi"; logfilepath = ENV["RESULTS"], logfilename = "junit.xml")'
+    - TRIXI_TEST=hpc_$CASE HPC_VARIANT=$VARIANT HPC_RESULTS_DIR="$CI_PROJECT_DIR/results" julia --project -e 'using Pkg; Pkg.test()'
   artifacts:
     when: always
     paths: [results/]
