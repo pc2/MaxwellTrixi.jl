@@ -18,6 +18,10 @@ on:
         description: Attach to a running GitLab pipeline instead of starting one
         type: string
         default: ''
+  # Weekly validation of main, disabled. Remove the comment signs to enable;
+  # a scheduled run uses the family default below.
+  # schedule:
+  #   - cron: '0 3 * * 1'
 
 permissions:
   contents: write
@@ -26,6 +30,7 @@ permissions:
   actions: write
 
 env:
+  FAMILIES: ${{ inputs.families || 'validation' }}
   GITLAB_HOST: ${{ vars.GITLAB_HOST || 'git.uni-paderborn.de' }}
   GITLAB_PROJECT_ID: ${{ vars.GITLAB_PROJECT_ID }}
   GITLAB_PROJECT_PATH: ${{ vars.GITLAB_PROJECT_PATH || 'pc2-ci/julia/MaxwellTrixi.jl' }}
@@ -35,7 +40,7 @@ env:
 jobs:
   start:
     name: Start on the mirror
-    if: inputs.pipeline_id == ''
+    if: ${{ !inputs.pipeline_id }}
     runs-on: ubuntu-latest
     timeout-minutes: 75
     outputs:
@@ -53,7 +58,7 @@ jobs:
         run: ci/gitlab_pipeline.sh push "$GITHUB_REF_NAME" "$GITHUB_SHA"
       - name: Start the pipeline
         id: start
-        run: ci/gitlab_pipeline.sh start "$GITHUB_REF_NAME" "${{ inputs.families }}" "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+        run: ci/gitlab_pipeline.sh start "$GITHUB_REF_NAME" "$FAMILIES" "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
         env:
           GITLAB_TRIGGER_TOKEN: ${{ secrets.GITLAB_TRIGGER_TOKEN }}
       - name: Commit status
@@ -66,7 +71,7 @@ jobs:
   wait:
     name: Wait for Slurm
     needs: start
-    if: ${{ !cancelled() && (needs.start.result == 'success' || inputs.pipeline_id != '') }}
+    if: ${{ !cancelled() && (needs.start.result == 'success' || inputs.pipeline_id) }}
     runs-on: ubuntu-latest
     timeout-minutes: 345
     env:
@@ -84,7 +89,7 @@ jobs:
       - name: Hand over to a new run
         if: steps.wait.outputs.finished != 'true'
         run: |
-          gh workflow run hpc.yml --ref "$GITHUB_REF_NAME" -f families="${{ inputs.families }}" -f pipeline_id="$PIPELINE_ID"
+          gh workflow run hpc.yml --ref "$GITHUB_REF_NAME" -f families="$FAMILIES" -f pipeline_id="$PIPELINE_ID"
           echo "Pipeline $PIPELINE_ID still running, a new run of this workflow continues waiting." >> "$GITHUB_STEP_SUMMARY"
         env:
           GH_TOKEN: ${{ github.token }}

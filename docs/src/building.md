@@ -97,6 +97,12 @@ what the [Validation and performance](@ref) page plots.
 `ci/gitlab_pipeline.sh` holds the GitLab calls and works by hand with the
 same variables.
 
+A weekly run is prepared but disabled: the `schedule` block in
+`.github/workflows/hpc.yml` is commented out. Enabling it runs the
+`validation` family on `main` every Monday at 03:00 UTC. GitHub suspends
+scheduled workflows after 60 days without activity in the repository and
+shows a notice to re-enable them.
+
 ### Setup
 
 On the GitLab project, once:
