@@ -29,7 +29,15 @@ summary() {
 }
 
 get() {
-    curl -fsS --header "PRIVATE-TOKEN: ${GITLAB_TOKEN:?GITLAB_TOKEN is not set}" "$api/$1"
+    local response code
+    response=$(curl -sS --header "PRIVATE-TOKEN: ${GITLAB_TOKEN:?GITLAB_TOKEN is not set}" --write-out '\n%{http_code}' "$api/$1")
+    code=${response##*$'\n'}
+    response=${response%$'\n'*}
+    if [ "${code:0:1}" != 2 ]; then
+        echo "GET $api/$1 failed with HTTP $code: $response" >&2
+        return 1
+    fi
+    printf '%s' "$response"
 }
 
 push() {
