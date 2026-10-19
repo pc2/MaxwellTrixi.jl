@@ -1,7 +1,7 @@
 # Long simulations on the Otus Slurm runner. Pipelines start from GitHub
 # (.github/workflows/hpc.yml) or from the GitLab UI, never on pushes to the
 # mirror. FAMILIES selects the job families, comma separated:
-# validation, sweep, scaling.
+# validation, scaling.
 
 workflow:
   rules:
@@ -90,29 +90,7 @@ validation:
     matrix:
       - CASE: [mie, mie_drude, dielectric_sphere, pec_sphere, slab, slab_dispersive]
 
-sweep_mie:
-  extends: .case
-  rules:
-    - if: $FAMILIES =~ /sweep/
-  variables:
-    CASE: mie
-    SCHEDULER_PARAMETERS: "$SCHEDULER_BASE -t 06:00:00 -N 1 -c 32"
-  parallel:
-    matrix:
-      - VARIANT: [h30, h15, h10, p2, p4]
-
-sweep_slab:
-  extends: .case
-  rules:
-    - if: $FAMILIES =~ /sweep/
-  variables:
-    CASE: slab
-    SCHEDULER_PARAMETERS: "$SCHEDULER_BASE -t 04:00:00 -N 1 -c 32"
-  parallel:
-    matrix:
-      - VARIANT: [n14, n56, p2, p4]
-
-# Full Mie runs per thread count; Trixi's indicators in metrics.txt give the scaling.
+# Short Mie runs per thread count; Trixi's indicators in metrics.txt give the scaling.
 scaling:
   extends: .case
   rules:
@@ -120,7 +98,7 @@ scaling:
   variables:
     CASE: mie
     VARIANT: "t$THREADS"
-    SCHEDULER_PARAMETERS: "$SCHEDULER_BASE -t 04:00:00 -N 1 -c $THREADS"
+    SCHEDULER_PARAMETERS: "$SCHEDULER_BASE -t 00:30:00 -N 1 -c $THREADS"
   parallel:
     matrix:
       - THREADS: ["1", "2", "4", "8", "16"]

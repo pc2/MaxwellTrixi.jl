@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       families:
-        description: Job families to run (comma separated from validation, sweep, scaling)
+        description: Job families to run (comma separated from validation, scaling)
         type: string
         default: validation
       pipeline_id:

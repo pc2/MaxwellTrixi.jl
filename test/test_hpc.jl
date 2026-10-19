@@ -7,10 +7,12 @@ using MaxwellTrixi
 using DelimitedFiles: writedlm
 
 # Full-resolution simulations for the cluster. TRIXI_TEST=hpc_<case> selects
-# the case and HPC_VARIANT one of its variants: `short` only exercises the
-# mechanics, t<n> runs the default setup on n threads. Each run writes
-# junit.xml with the test results, metrics.txt in OpenMetrics format and
-# data.csv to <case>/<variant>/ below HPC_RESULTS_DIR, by default results/.
+# the case and HPC_VARIANT one of its variants: `default` runs the elixir as
+# it is with its reference checks, `short` and the timing variants t<n> run
+# a short time span without the checks, t<n> on n threads for the scaling.
+# Each run writes junit.xml with the test results, metrics.txt in OpenMetrics
+# format and data.csv to <case>/<variant>/ below HPC_RESULTS_DIR, by default
+# results/.
 
 const CASE = chopprefix(ENV["TRIXI_TEST"], "hpc_")
 const VARIANT = get(ENV, "HPC_VARIANT", "default")
@@ -19,22 +21,15 @@ const RESULTS_DIR = joinpath(get(ENV, "HPC_RESULTS_DIR", pkgdir(MaxwellTrixi, "r
 const EXAMPLES_DIR = pkgdir(MaxwellTrixi, "examples")
 const MAXITERS = 10_000_000
 
-# Overrides for trixi_include per case and variant.
-const VARIANTS = Dict("mie" => Dict("h30" => (; size_factor = 3.0),
-                           "h15" => (; size_factor = 1.5),
-                           "h10" => (; size_factor = 1.0),
-                           "p2" => (; polydeg = 2),
-                           "p4" => (; polydeg = 4)),
-                      "slab" => Dict("n14" => (; cells_per_dimension = (2, 2, 14)),
-                           "n56" => (; cells_per_dimension = (2, 2, 56)),
-                           "p2" => (; polydeg = 2),
-                           "p4" => (; polydeg = 4)))
+timing_variant(variant) = occursin(r"^t\d+$", variant)
+checked_variant(variant) = variant == "default"
 
-function overrides(case, variant)
+# Overrides for trixi_include per variant.
+function overrides(variant)
     variant == "default" && return (;)
     variant == "short" && return (; tspan = (0.0, 0.5))
-    occursin(r"^t\d+$", variant) && return (;)
-    return VARIANTS[case][variant]
+    timing_variant(variant) && return (; tspan = (0.0, 1.0))
+    error("unknown variant $variant")
 end
 
 function repository_commit()
@@ -204,12 +199,12 @@ haskey(CASES, CASE) || error("unknown HPC case $CASE")
 elixir = joinpath(EXAMPLES_DIR, CASES[CASE].elixir)
 println("HPC case $CASE, variant $VARIANT, $(Threads.nthreads()) threads: $elixir")
 wall_time = @elapsed trixi_include(@__MODULE__, elixir; maxiters = MAXITERS,
-                                   overrides(CASE, VARIANT)...)
+                                   overrides(VARIANT)...)
 
 report_set = @testset ReportingTestSet "hpc $CASE $VARIANT" begin
     @testset "checks" begin
         @test string(sol.retcode) == "Success"
-        VARIANT == "short" || CASES[CASE].check()
+        checked_variant(VARIANT) && CASES[CASE].check()
     end
     @testset "performance" begin
         record_performance(semi, sol, wall_time)

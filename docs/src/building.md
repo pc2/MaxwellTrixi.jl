@@ -60,8 +60,8 @@ Long simulations run on the Otus cluster through the GitLab mirror
 `git.uni-paderborn.de/pc2-ci/julia/MaxwellTrixi.jl` and its Slurm runner. The
 cases are testsets in `test/test_hpc.jl`: full-resolution elixirs with the
 reference checks of the test suite, selected by `TRIXI_TEST=hpc_<case>`, and
-`HPC_VARIANT` for resolution sweeps such as `h15` or `p4`, thread counts such
-as `t8`, or `short` for a shortened time span. Each run writes
+`HPC_VARIANT` for a thread count such as `t8` or `short`, both running a
+short time span without the checks. Each run writes
 `results/<case>/<variant>/`: `junit.xml` with one entry per check,
 `metrics.txt` with the errors against the references and Trixi's performance
 indicators in OpenMetrics format, and `data.csv` with the spectrum next to its
@@ -75,9 +75,9 @@ The JUnit file comes from TestReports.jl inside the test process; the test
 project pins it to its fix for Julia 1.13 until the 1.4.1 release.
 
 `.gitlab-ci.yml` runs `prepare`, which fills the Julia depot, builds the
-MPI wrapper and downloads the meshes, then one Slurm job per case. `FAMILIES` selects `validation`, `sweep`
-or `scaling`. `SCHEDULER_BASE` carries the account, partition and
-memory, each job adds its walltime and cores. Pipelines run only when started
+MPI wrapper and downloads the meshes, then one Slurm job per case.
+`FAMILIES` selects `validation` or `scaling`. `SCHEDULER_BASE` carries the
+account, partition and memory, each job adds its walltime and cores. Pipelines run only when started
 from GitHub or from the GitLab UI, never on pushes to the mirror. The GitLab
 project needs the CI/CD variable `CI_DEPOT_ROOT`, an absolute path on the
 parallel file system.

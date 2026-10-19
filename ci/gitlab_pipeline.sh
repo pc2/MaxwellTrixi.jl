@@ -59,7 +59,13 @@ mirrored() {
 }
 
 start() {
-    local ref=$1 families=$2 run_url=$3 response id
+    local ref=$1 families=$2 run_url=$3 response id family
+    for family in ${families//,/ }; do
+        case $family in
+            validation | scaling) ;;
+            *) echo "unknown family '$family', use validation or scaling" >&2; return 1 ;;
+        esac
+    done
     response=$(curl -sS --request POST "$api/trigger/pipeline" \
         --form "token=${GITLAB_TRIGGER_TOKEN:?GITLAB_TRIGGER_TOKEN is not set}" \
         --form "ref=$ref" \
