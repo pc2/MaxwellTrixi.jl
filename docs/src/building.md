@@ -123,6 +123,13 @@ gh variable set GITLAB_PROJECT_ID --body <id>
 `GITLAB_HOST` defaults to `git.uni-paderborn.de` and can be overridden as a
 variable. Nothing GitHub-related is stored on GitLab.
 
+The pull mirror's schedule is set for the whole GitLab instance, not per
+project. To skip the wait, set the GitHub variable `GITLAB_MIRROR` to
+`push`: the workflow then pushes the commit itself. This needs the scope
+`write_repository` on the token, role Developer, and under
+**Settings → Repository → Protected branches** permission for Developers to
+push and force push `main`.
+
 To run the cluster side alone, start a pipeline under **Build → Pipelines →
 New pipeline** with the variable `FAMILIES` once the mirror has fetched the
 commit. The full loop from GitHub:

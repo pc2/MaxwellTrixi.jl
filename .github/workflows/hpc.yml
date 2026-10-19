@@ -1,9 +1,11 @@
 name: HPC
 
 # Runs the long simulations on the Otus Slurm runner through the GitLab
-# pull mirror and brings the results back. Secrets: GITLAB_TOKEN (project
-# access token, scope read_api) and GITLAB_TRIGGER_TOKEN. Variables:
-# GITLAB_PROJECT_ID, optionally GITLAB_HOST.
+# mirror and brings the results back. Secrets: GITLAB_TOKEN (project access
+# token, scope read_api, plus write_repository when pushing) and
+# GITLAB_TRIGGER_TOKEN. Variables: GITLAB_PROJECT_ID, optionally GITLAB_HOST,
+# GITLAB_PROJECT_PATH and GITLAB_MIRROR (pull, the default, waits for the
+# project's pull mirror; push pushes the commit).
 
 on:
   workflow_dispatch:
@@ -26,6 +28,8 @@ permissions:
 env:
   GITLAB_HOST: ${{ vars.GITLAB_HOST || 'git.uni-paderborn.de' }}
   GITLAB_PROJECT_ID: ${{ vars.GITLAB_PROJECT_ID }}
+  GITLAB_PROJECT_PATH: ${{ vars.GITLAB_PROJECT_PATH || 'pc2-ci/julia/MaxwellTrixi.jl' }}
+  GITLAB_MIRROR: ${{ vars.GITLAB_MIRROR || 'pull' }}
   GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
 
 jobs:
@@ -39,8 +43,14 @@ jobs:
       web_url: ${{ steps.start.outputs.web_url }}
     steps:
       - uses: actions/checkout@v6
-      - name: Wait for the mirror to fetch the commit
+        with:
+          fetch-depth: ${{ env.GITLAB_MIRROR == 'push' && 0 || 1 }}
+      - name: Wait for the pull mirror to fetch the commit
+        if: env.GITLAB_MIRROR != 'push'
         run: ci/gitlab_pipeline.sh mirrored "$GITHUB_SHA" 60
+      - name: Push the commit to the mirror
+        if: env.GITLAB_MIRROR == 'push'
+        run: ci/gitlab_pipeline.sh push "$GITHUB_REF_NAME" "$GITHUB_SHA"
       - name: Start the pipeline
         id: start
         run: ci/gitlab_pipeline.sh start "$GITHUB_REF_NAME" "${{ inputs.families }}" "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"

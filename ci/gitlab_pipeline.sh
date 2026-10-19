@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # GitLab pipeline control for .github/workflows/hpc.yml, usable by hand with
 # the same variables: GITLAB_HOST, GITLAB_PROJECT_ID, GITLAB_TOKEN (project
-# access token, scope read_api) and, for start, GITLAB_TRIGGER_TOKEN. The
-# GitLab project pull-mirrors GitHub.
+# access token, scope read_api, plus write_repository for push) and, for
+# start, GITLAB_TRIGGER_TOKEN. The commit reaches GitLab either through the
+# project's pull mirror (mirrored) or by pushing it (push, needs
+# GITLAB_PROJECT_PATH).
 #
-#   ci/gitlab_pipeline.sh mirrored <sha> <max_minutes>   wait for the mirror
+#   ci/gitlab_pipeline.sh mirrored <sha> <max_minutes>   wait for the pull mirror
+#   ci/gitlab_pipeline.sh push <ref> <sha>               push the commit instead
 #   ci/gitlab_pipeline.sh start <ref> <families> <run_url>
 #   ci/gitlab_pipeline.sh wait <pipeline_id> <max_minutes>
 #   ci/gitlab_pipeline.sh collect <pipeline_id>          artifacts into results/
@@ -27,6 +30,10 @@ summary() {
 
 get() {
     curl -fsS --header "PRIVATE-TOKEN: ${GITLAB_TOKEN:?GITLAB_TOKEN is not set}" "$api/$1"
+}
+
+push() {
+    git push --force "https://oauth2:${GITLAB_TOKEN:?GITLAB_TOKEN is not set}@$host/${GITLAB_PROJECT_PATH:?GITLAB_PROJECT_PATH is not set}.git" "$2:refs/heads/$1"
 }
 
 mirrored() {
@@ -124,8 +131,9 @@ collect() {
 
 case ${1:-} in
     mirrored) mirrored "$2" "$3" ;;
+    push) push "$2" "$3" ;;
     start) start "$2" "$3" "$4" ;;
     wait) wait_for "$2" "$3" ;;
     collect) collect "$2" ;;
-    *) echo "usage: $0 mirrored|start|wait|collect ..." >&2; exit 2 ;;
+    *) echo "usage: $0 mirrored|push|start|wait|collect ..." >&2; exit 2 ;;
 esac
