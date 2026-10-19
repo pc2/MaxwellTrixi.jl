@@ -75,7 +75,7 @@ start() {
     output web_url "$(jq -r .web_url <<< "$response")"
     output sha "$(jq -r .sha <<< "$response")"
     echo "::notice title=GitLab pipeline $id::$(jq -r .web_url <<< "$response")"
-    { pipeline_heading "$id" "$response"; jobs_table "$id"; } | summary
+    { pipeline_heading "$id" "$response"; jobs_links "$id"; } | summary
 }
 
 jobs_table() {
@@ -83,6 +83,12 @@ jobs_table() {
         "| Job | Status | Duration |", "|---|---|---|",
         (.[] | "| [\(.name)](\(.web_url)) | \(.status) | \(
             if .duration then ((.duration / 60) | floor | tostring) + " min" else "" end) |")'
+}
+
+jobs_links() {
+    get "pipelines/$1/jobs?per_page=100" | jq -r '
+        "| Job | Link |", "|---|---|",
+        (.[] | "| \(.name) | \(.web_url) |")'
 }
 
 jobs_log() {
