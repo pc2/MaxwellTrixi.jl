@@ -32,6 +32,8 @@ default:
     - export JULIA_LOAD_PATH="@:$CI_PROJECT_DIR/hpc/preferences:${JULIA_LOAD_PATH:-}"
     - export MPITRAMPOLINE_LIB=$(ls "$CI_DEPOT_ROOT"/mpiwrapper/lib*/libmpiwrapper.so 2>/dev/null | head -n 1)
     - export MPITRAMPOLINE_MPIEXEC="$CI_DEPOT_ROOT/mpiwrapper/bin/mpiwrapperexec"
+    # UCX must not install its signal handlers, Julia's garbage collector relies on handling the fault itself
+    - export UCX_ERROR_SIGNALS=
     - export UCX_WARN_UNUSED_ENV_VARS=n
     # login and compute nodes are AMD EPYC 9655
     - export JULIA_CPU_TARGET=znver5
