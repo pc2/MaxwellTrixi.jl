@@ -10,7 +10,7 @@
 #   ci/gitlab_pipeline.sh push <ref> <sha>               push the commit instead
 #   ci/gitlab_pipeline.sh start <ref> <families> <run_url>
 #   ci/gitlab_pipeline.sh wait <pipeline_id> <max_minutes>
-#   ci/gitlab_pipeline.sh collect <pipeline_id>          artifacts into results/
+#   ci/gitlab_pipeline.sh collect <pipeline_id>          artifacts into results/, pipeline.json
 #
 # Outputs go to stdout and, inside GitHub Actions, to GITHUB_OUTPUT; tables
 # go to GITHUB_STEP_SUMMARY.
@@ -203,6 +203,7 @@ wait_for() {
 collect() {
     local id=$1 pipeline status job
     pipeline=$(get "pipelines/$id")
+    printf '%s\n' "$pipeline" > pipeline.json
     status=$(jq -r .status <<< "$pipeline")
     output status "$status"
     output web_url "$(jq -r .web_url <<< "$pipeline")"
@@ -213,7 +214,7 @@ collect() {
         unzip -qo "job-$job.zip"
         rm "job-$job.zip"
     done
-    { pipeline_heading "$id" "$pipeline"; jobs_table "$(jobs_json "$id")"; echo; julia ci/metrics_table.jl results; } | summary
+    { pipeline_heading "$id" "$pipeline"; jobs_table "$(jobs_json "$id")"; echo; ci/results.sh table results; } | summary
     [ "$status" = success ]
 }
 

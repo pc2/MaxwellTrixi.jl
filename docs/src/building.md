@@ -91,7 +91,9 @@ the pipeline with the job table, so the Checks tab shows the Slurm jobs live.
 When the pipeline has finished, the run downloads the artifacts and publishes
 a check run from the JUnit files, a results table in the run summary, the raw
 results as a run artifact and the commit status `gitlab/hpc` linking to the
-pipeline.
+pipeline. It also appends one record per case to `history.jsonl` on the
+branch `hpc-results`, together with the run's `metrics.txt` files, which is
+what the [Validation and performance](@ref) page plots.
 `ci/gitlab_pipeline.sh` holds the GitLab calls and works by hand with the
 same variables.
 

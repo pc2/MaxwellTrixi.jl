@@ -20,7 +20,7 @@ on:
         default: ''
 
 permissions:
-  contents: read
+  contents: write
   statuses: write
   checks: write
   actions: write
@@ -95,13 +95,13 @@ jobs:
     if: ${{ !cancelled() && needs.wait.outputs.finished == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    concurrency:
+      group: hpc-results
+      cancel-in-progress: false
     env:
       PIPELINE_ID: ${{ needs.wait.outputs.pipeline_id }}
     steps:
       - uses: actions/checkout@v6
-      - uses: julia-actions/setup-julia@v3
-        with:
-          version: '1.13'
       - name: Download artifacts and summarize
         id: collect
         run: ci/gitlab_pipeline.sh collect "$PIPELINE_ID"
@@ -112,6 +112,14 @@ jobs:
           path: results
           if-no-files-found: warn
           retention-days: 90
+      - name: Append to the results branch
+        if: ${{ always() && steps.collect.outputs.sha != '' }}
+        run: ci/results.sh publish results "$GITHUB_REF_NAME" pipeline.json
+      - name: Rebuild the documentation with the new history
+        if: ${{ always() && steps.collect.outputs.sha != '' }}
+        run: gh workflow run docs.yml --ref main
+        env:
+          GH_TOKEN: ${{ github.token }}
       - uses: dorny/test-reporter@v2
         if: always()
         with:
