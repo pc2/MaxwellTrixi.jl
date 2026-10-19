@@ -85,10 +85,13 @@ parallel file system.
 **Actions → HPC → Run workflow** waits until the pull mirror has fetched the
 commit, starts the pipeline with the chosen families and waits for it; after
 5.5 hours, the
-limit of a GitHub job, it hands over to a new run of itself. When the
-pipeline has finished, the run downloads the artifacts and publishes a check
-run from the JUnit files, a results table in the run summary, the raw results
-as a run artifact and the commit status `gitlab/hpc` linking to the pipeline.
+limit of a GitHub job, it hands over to a new run of itself. While waiting
+it keeps one check run per GitLab job on the commit up to date, plus one for
+the pipeline with the job table, so the Checks tab shows the Slurm jobs live.
+When the pipeline has finished, the run downloads the artifacts and publishes
+a check run from the JUnit files, a results table in the run summary, the raw
+results as a run artifact and the commit status `gitlab/hpc` linking to the
+pipeline.
 `ci/gitlab_pipeline.sh` holds the GitLab calls and works by hand with the
 same variables.
 

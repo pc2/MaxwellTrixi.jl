@@ -79,6 +79,8 @@ jobs:
       - name: Poll the pipeline
         id: wait
         run: ci/gitlab_pipeline.sh wait "$PIPELINE_ID" 330
+        env:
+          GH_TOKEN: ${{ github.token }}
       - name: Hand over to a new run
         if: steps.wait.outputs.finished != 'true'
         run: |

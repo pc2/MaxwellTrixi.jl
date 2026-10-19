@@ -75,24 +75,85 @@ start() {
     output web_url "$(jq -r .web_url <<< "$response")"
     output sha "$(jq -r .sha <<< "$response")"
     echo "::notice title=GitLab pipeline $id::$(jq -r .web_url <<< "$response")"
-    { pipeline_heading "$id" "$response"; jobs_links "$id"; } | summary
+    { pipeline_heading "$id" "$response"; jobs_links "$(jobs_json "$id")"; } | summary
 }
 
+jobs_json() {
+    get "pipelines/$1/jobs?per_page=100"
+}
+
+# The table functions take the jobs JSON.
 jobs_table() {
-    get "pipelines/$1/jobs?per_page=100" | jq -r '
-        "| Job | Status | Duration |", "|---|---|---|",
+    jq -r '"| Job | Status | Duration |", "|---|---|---|",
         (.[] | "| [\(.name)](\(.web_url)) | \(.status) | \(
-            if .duration then ((.duration / 60) | floor | tostring) + " min" else "" end) |")'
+            if .duration then ((.duration / 60) | floor | tostring) + " min" else "" end) |")' <<< "$1"
 }
 
 jobs_links() {
-    get "pipelines/$1/jobs?per_page=100" | jq -r '
-        "| Job | Link |", "|---|---|",
-        (.[] | "| \(.name) | \(.web_url) |")'
+    jq -r '"| Job | Link |", "|---|---|", (.[] | "| \(.name) | \(.web_url) |")' <<< "$1"
 }
 
 jobs_log() {
-    get "pipelines/$1/jobs?per_page=100" | jq -r '.[] | "    \(.status)\t\(.name)\t\(.web_url)"'
+    jq -r '.[] | "    \(.status)\t\(.name)\t\(.web_url)"' <<< "$1"
+}
+
+# Check runs on the pipeline's commit: one per GitLab job and one for the
+# pipeline with the table, updated while polling. They need gh with GH_TOKEN
+# inside GitHub Actions and are skipped otherwise.
+checks_enabled() {
+    [ -n "${GH_TOKEN:-}" ] && [ -n "${GITHUB_REPOSITORY:-}" ]
+}
+
+checks_init() {
+    declare -gA check_ids check_states
+    local name id
+    while IFS=$'\t' read -r name id; do
+        check_ids[$name]=$id
+    done < <(gh api "repos/$GITHUB_REPOSITORY/commits/$1/check-runs?per_page=100" \
+        --jq '.check_runs[] | select(.name | startswith("gitlab/")) | [.name, .id] | @tsv')
+}
+
+# GitLab job status to check run status and conclusion
+check_state() {
+    case $1 in
+        success) echo "completed success" ;;
+        failed) echo "completed failure" ;;
+        canceled) echo "completed cancelled" ;;
+        skipped | manual) echo "completed skipped" ;;
+        running) echo "in_progress" ;;
+        *) echo "queued" ;;
+    esac
+}
+
+check_update() {
+    local name=$1 sha=$2 state=$3 url=$4 title=$5 text=$6 status conclusion
+    read -r status conclusion <<< "$state"
+    local args=(-f "status=$status" -f "details_url=$url" -f "output[title]=$title" -f "output[summary]=$text")
+    if [ -n "$conclusion" ]; then args+=(-f "conclusion=$conclusion"); fi
+    if [ -n "${check_ids[$name]:-}" ]; then
+        gh api --method PATCH "repos/$GITHUB_REPOSITORY/check-runs/${check_ids[$name]}" "${args[@]}" --silent
+    else
+        check_ids[$name]=$(gh api "repos/$GITHUB_REPOSITORY/check-runs" -f "name=$name" -f "head_sha=$sha" "${args[@]}" --jq .id)
+    fi
+}
+
+checks_sync() {
+    local id=$1 pipeline=$2 jobs=$3 sha status name job_status url duration state changed=false
+    sha=$(jq -r .sha <<< "$pipeline")
+    status=$(jq -r .status <<< "$pipeline")
+    while IFS=$'\t' read -r name job_status url duration; do
+        state=$(check_state "$job_status")
+        if [ "${check_states[$name]:-}" = "$job_status" ]; then continue; fi
+        check_update "gitlab/$name" "$sha" "$state" "$url" "$job_status" "GitLab job $job_status${duration:+, $duration}"
+        check_states[$name]=$job_status
+        changed=true
+    done < <(jq -r '.[] | [.name, .status, .web_url,
+        (if .duration then ((.duration / 60) | floor | tostring) + " min" else "" end)] | @tsv' <<< "$jobs")
+    if [ "$changed" = true ] || [ "${check_states[pipeline]:-}" != "$status" ]; then
+        check_update "gitlab/pipeline" "$sha" "$(check_state "$status")" "$(jq -r .web_url <<< "$pipeline")" \
+            "pipeline $id $status" "$(jobs_table "$jobs")"
+        check_states[pipeline]=$status
+    fi
 }
 
 pipeline_heading() {
@@ -100,20 +161,23 @@ pipeline_heading() {
 }
 
 wait_for() {
-    local id=$1 max_minutes=$2 pipeline status deadline
+    local id=$1 max_minutes=$2 pipeline jobs status deadline
     deadline=$(( $(date +%s) + max_minutes * 60 ))
     pipeline=$(get "pipelines/$id")
     echo "::notice title=GitLab pipeline $id::$(jq -r .web_url <<< "$pipeline")"
+    if checks_enabled; then checks_init "$(jq -r .sha <<< "$pipeline")"; fi
     while :; do
         pipeline=$(get "pipelines/$id")
+        jobs=$(jobs_json "$id")
         status=$(jq -r .status <<< "$pipeline")
         echo "$(date -u +%H:%M) pipeline $id: $status  $(jq -r .web_url <<< "$pipeline")"
-        jobs_log "$id"
+        jobs_log "$jobs"
+        if checks_enabled; then checks_sync "$id" "$pipeline" "$jobs"; fi
         case $status in
             success | failed | canceled | skipped)
                 output finished true
                 output status "$status"
-                { pipeline_heading "$id" "$pipeline"; jobs_table "$id"; } | summary
+                { pipeline_heading "$id" "$pipeline"; jobs_table "$jobs"; } | summary
                 return 0
                 ;;
         esac
@@ -134,12 +198,12 @@ collect() {
     output status "$status"
     output web_url "$(jq -r .web_url <<< "$pipeline")"
     output sha "$(jq -r .sha <<< "$pipeline")"
-    for job in $(get "pipelines/$id/jobs?per_page=100" | jq -r '.[] | select(.artifacts_file != null) | .id'); do
+    for job in $(jobs_json "$id" | jq -r '.[] | select(.artifacts_file != null) | .id'); do
         curl -fsS --header "PRIVATE-TOKEN: $GITLAB_TOKEN" --output "job-$job.zip" "$api/jobs/$job/artifacts"
         unzip -qo "job-$job.zip" -x "*.toml" "meshes/*"
         rm "job-$job.zip"
     done
-    { pipeline_heading "$id" "$pipeline"; jobs_table "$id"; echo; julia ci/metrics_table.jl results; } | summary
+    { pipeline_heading "$id" "$pipeline"; jobs_table "$(jobs_json "$id")"; echo; julia ci/metrics_table.jl results; } | summary
     [ "$status" = success ]
 }
 
