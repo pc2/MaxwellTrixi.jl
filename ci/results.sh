@@ -10,6 +10,17 @@
 set -euo pipefail
 
 RESULTS_BRANCH=${RESULTS_BRANCH:-hpc-results}
+# space separated glob patterns of the branches whose runs are recorded
+HISTORY_BRANCHES=${HISTORY_BRANCHES:-*}
+
+recorded_branch() {
+    local pattern
+    for pattern in $HISTORY_BRANCHES; do
+        # shellcheck disable=SC2254
+        case $1 in $pattern) return 0 ;; esac
+    done
+    return 1
+}
 
 # metrics.txt to JSON: {labels: {...}, metrics: {...}}
 parse_metrics() {
@@ -74,6 +85,10 @@ records() {
 
 publish() {
     local results=$1 ref=$2 pipeline=$3 id sha7 stamp dir run_dir file target
+    if ! recorded_branch "$ref"; then
+        echo "branch $ref is not recorded (HISTORY_BRANCHES=$HISTORY_BRANCHES)"
+        return 0
+    fi
     id=$(jq -r .id "$pipeline")
     sha7=$(jq -r '.sha[:7]' "$pipeline")
     stamp=$(jq -r '.created_at[:19]' "$pipeline" | tr -d ':' | tr T _)

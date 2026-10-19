@@ -93,7 +93,9 @@ a check run from the JUnit files, a results table in the run summary, the raw
 results as a run artifact and the commit status `gitlab/hpc` linking to the
 pipeline. It also appends one record per case to `history.jsonl` on the
 branch `hpc-results`, together with the run's `metrics.txt` files, which is
-what the [Validation and performance](@ref) page plots.
+what the [Validation and performance](@ref) page plots. Runs from every
+branch are recorded; the GitHub variable `HISTORY_BRANCHES` restricts this
+to glob patterns such as `main release/*`.
 `ci/gitlab_pipeline.sh` holds the GitLab calls and works by hand with the
 same variables.
 

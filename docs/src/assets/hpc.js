@@ -1,17 +1,26 @@
 // Validation and performance history: reads history.jsonl, one record per
 // case and cluster run as written by the HPC workflow, and draws it as inline
-// SVG. Colors and ink are the roles in hpc.css.
+// SVG. Colors and ink are the roles in hpc.css. Settings come from the data
+// attributes of the root element:
+//   data-history     URL of the history, default ../assets/hpc/history.jsonl
+//   data-branch      branch selected first, default main
+//   data-branches    comma separated branches to offer, default all recorded
+//   data-indicators  JSON object of metric name to label for the performance
+//                    and scaling charts
+//   data-checks      regular expression marking a metric as a reference check
+//   data-timing      regular expression marking a timing variant
 
 const root = document.getElementById("hpc");
-const DATA_URL = "../assets/hpc/history.jsonl";
-const CHECK = /_(relative_error|absolute_error|fraction|plus_reflectance)$/;
-const TIMING = /^t\d+$/;
-const METRICS = {
-  pid_seconds: "PID",
-  time_per_dof_per_rhs_seconds: "time per DOF per rhs",
-};
+const settings = root.dataset;
+const DATA_URL = settings.history || "../assets/hpc/history.jsonl";
+const CHECK = new RegExp(settings.checks || "_(relative_error|absolute_error|fraction|plus_reflectance)$");
+const TIMING = new RegExp(settings.timing || "^t\\d+$");
+const METRICS = settings.indicators ? JSON.parse(settings.indicators)
+  : { pid_seconds: "PID", time_per_dof_per_rhs_seconds: "time per DOF per rhs" };
+const DEFAULT_BRANCH = settings.branch || "main";
+const BRANCHES = settings.branches ? settings.branches.split(",").map((b) => b.trim()) : null;
 
-const state = { records: [], branch: "", selectedCase: "all", metric: "pid_seconds", slots: new Map() };
+const state = { records: [], branch: "", selectedCase: "all", metric: Object.keys(METRICS)[0], slots: new Map() };
 
 function el(tag, attributes = {}, children = []) {
   const node = document.createElement(tag);
@@ -283,7 +292,9 @@ function fillSelect(select, values, labels = values) {
 }
 
 function setupFilters() {
-  const branches = [...new Set(state.records.map((r) => r.ref))].sort((a, b) => (a === "main" ? -1 : b === "main" ? 1 : a.localeCompare(b)));
+  const branches = [...new Set(state.records.map((r) => r.ref))]
+    .filter((b) => !BRANCHES || BRANCHES.includes(b))
+    .sort((a, b) => (a === DEFAULT_BRANCH ? -1 : b === DEFAULT_BRANCH ? 1 : a.localeCompare(b)));
   const branch = root.querySelector("#hpc-branch");
   fillSelect(branch, branches);
   state.branch = branches[0];
@@ -307,6 +318,7 @@ async function load() {
     note.textContent = "No results yet. The HPC workflow writes the history after each cluster run.";
     return;
   }
+  if (BRANCHES) state.records = state.records.filter((r) => BRANCHES.includes(r.ref));
   if (state.records.length === 0) { note.textContent = "No results yet."; return; }
   note.textContent = `${state.records.length} records from ${new Set(state.records.map((r) => r.pipeline)).size} cluster runs.`;
   const threads = [...new Set(state.records.map((r) => r.threads))].sort((a, b) => a - b);
