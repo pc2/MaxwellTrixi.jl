@@ -90,14 +90,6 @@ validation:
     matrix:
       - CASE: [mie, mie_drude, dielectric_sphere, pec_sphere, slab, slab_dispersive]
 
-validation_gold:
-  extends: .case
-  rules:
-    - if: $FAMILIES =~ /validation/
-  variables:
-    CASE: gold_nanosphere
-    SCHEDULER_PARAMETERS: "$SCHEDULER_BASE -t 12:00:00 -N 1 -c 96"
-
 sweep_mie:
   extends: .case
   rules:
