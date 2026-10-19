@@ -62,16 +62,19 @@ function record(name, value; labels...)
 end
 
 # Trixi's performance indicators from its timer: time per DOF per rhs from the
-# rhs section, the PID from the time measured in all sections but the analysis,
-# a few percent below the wall time of the solve.
+# rhs section, the PID from the wall time since the summary callback reset the
+# timer, without the analysis. TimerOutputs names the reset time differently
+# across its versions.
 function record_performance(semi, sol, wall_time)
-    timing = Trixi.TimerOutputs.todict(Trixi.timer())
-    sections = timing["inner_timers"]
+    timer = Trixi.timer()
+    sections = Trixi.TimerOutputs.todict(timer)["inner_timers"]
     rhs = haskey(sections, "rhs!") ? sections["rhs!"] : sections["rhs_hyperbolic!"]
     calls = rhs["n_calls"]
     rhs_time = rhs["time_ns"] / 1e9
     analysis_time = get(sections, "analyze solution", Dict("time_ns" => 0))["time_ns"] / 1e9
-    solve_time = timing["total_time_ns"] / 1e9 - analysis_time
+    started = hasfield(typeof(timer), :start_time) ? timer.start_time :
+              timer.start_data.time
+    solve_time = (time_ns() - started) / 1e9 - analysis_time
     ndofs = Trixi.ndofs(semi)
     threads = Threads.nthreads()
     record("ndofs", ndofs)

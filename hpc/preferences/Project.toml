@@ -1,7 +1,8 @@
 # Placed on JULIA_LOAD_PATH by .gitlab-ci.yml ahead of the cluster's Julia
 # module: MPI goes through MPItrampoline and the MPIwrapper that prepare
 # builds against the system OpenMPI, so the MPI-enabled binary packages never
-# load a second OpenMPI into the process.
+# load a second OpenMPI into the process. Pkg.test copies the preference into
+# its sandbox, where it applies because MPIPreferences is a test dependency.
 [extras]
 MPIPreferences = "3da0fdf6-3ccc-4f1b-acd9-58baa6c99267"
 

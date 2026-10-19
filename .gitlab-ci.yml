@@ -52,6 +52,8 @@ prepare:
     - julia --project -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
     - julia --project=test -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
     - julia --project=test -e 'using Trixi; Trixi.MPI.versioninfo()'
+    # the quick suite inside the test sandbox, where the Slurm jobs run
+    - TRIXI_TEST=upstream julia --project -e 'using Pkg; Pkg.test()'
     - julia --project -e 'using MaxwellTrixi; foreach(download_mesh, keys(MaxwellTrixi.MESH_REGISTRY))'
   artifacts:
     paths: [Manifest.toml, test/Manifest.toml, meshes/]
@@ -65,6 +67,7 @@ prepare:
   variables:
     VARIANT: default
   script:
+    - test -f "$MPITRAMPOLINE_LIB" || { echo "no MPI wrapper below $CI_DEPOT_ROOT/mpiwrapper, run prepare first"; exit 1; }
     - export RESULTS=results/$CASE/$VARIANT
     - mkdir -p $RESULTS
     - echo "case $CASE, variant $VARIANT, $JULIA_NUM_THREADS threads, Slurm job $SLURM_JOB_ID"
