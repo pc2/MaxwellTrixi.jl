@@ -1,0 +1,10 @@
+# Placed on JULIA_LOAD_PATH by .gitlab-ci.yml ahead of the cluster's Julia
+# module: MPI goes through MPItrampoline and the MPIwrapper that prepare
+# builds against the system OpenMPI, so the MPI-enabled binary packages never
+# load a second OpenMPI into the process.
+[extras]
+MPIPreferences = "3da0fdf6-3ccc-4f1b-acd9-58baa6c99267"
+
+[preferences.MPIPreferences]
+_format = "1.0"
+binary = "MPItrampoline_jll"

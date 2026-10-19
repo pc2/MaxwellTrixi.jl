@@ -28,6 +28,11 @@ default:
     - module load lang/JuliaHPC/1.13.1-foss-2025a
     # our depot first, then whatever the module set or Julia's bundled depots
     - export JULIA_DEPOT_PATH="$CI_DEPOT_ROOT/julia-depot:${JULIA_DEPOT_PATH:-}"
+    # MPI through MPItrampoline and the MPIwrapper built by prepare, see hpc/preferences
+    - export JULIA_LOAD_PATH="@:$CI_PROJECT_DIR/hpc/preferences:${JULIA_LOAD_PATH:-}"
+    - export MPITRAMPOLINE_LIB=$(ls "$CI_DEPOT_ROOT"/mpiwrapper/lib*/libmpiwrapper.so 2>/dev/null | head -n 1)
+    - export MPITRAMPOLINE_MPIEXEC="$CI_DEPOT_ROOT/mpiwrapper/bin/mpiwrapperexec"
+    - export UCX_WARN_UNUSED_ENV_VARS=n
     - export JULIA_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
 
 prepare:
@@ -36,9 +41,12 @@ prepare:
     SCHEDULER_PARAMETERS: "$SCHEDULER_BASE -t 01:30:00 -c 8"
   script:
     - echo "checkout in $CI_PROJECT_DIR, depot in $JULIA_DEPOT_PATH"
+    - hpc/install_mpiwrapper.sh "$CI_DEPOT_ROOT/mpiwrapper"
+    - export MPITRAMPOLINE_LIB=$(ls "$CI_DEPOT_ROOT"/mpiwrapper/lib*/libmpiwrapper.so | head -n 1)
     - julia --project -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
     - julia --project=test -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
     - julia --project=hpc -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
+    - julia --project=test -e 'using Trixi; Trixi.MPI.versioninfo()'
     - julia --project -e 'using MaxwellTrixi; foreach(download_mesh, keys(MaxwellTrixi.MESH_REGISTRY))'
   artifacts:
     paths: [Manifest.toml, test/Manifest.toml, hpc/Manifest.toml, meshes/]

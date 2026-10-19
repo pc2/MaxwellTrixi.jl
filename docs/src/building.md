@@ -76,8 +76,8 @@ TRIXI_TEST=hpc_mie julia --project=hpc -e 'using TestReports; TestReports.test("
 `hpc/Project.toml` pins TestReports to its fix for Julia 1.13 until the 1.4.1
 release.
 
-`.gitlab-ci.yml` runs `prepare`, which fills the Julia depot and downloads the
-meshes, then one Slurm job per case. `FAMILIES` selects `validation`, `sweep`
+`.gitlab-ci.yml` runs `prepare`, which fills the Julia depot, builds the
+MPI wrapper and downloads the meshes, then one Slurm job per case. `FAMILIES` selects `validation`, `sweep`
 or `scaling`. `SCHEDULER_BASE` carries the account, partition and
 memory, each job adds its walltime and cores. Pipelines run only when started
 from GitHub or from the GitLab UI, never on pushes to the mirror. The GitLab
@@ -122,6 +122,16 @@ gh variable set GITLAB_PROJECT_ID --body <id>
 
 `GITLAB_HOST` defaults to `git.uni-paderborn.de` and can be overridden as a
 variable. Nothing GitHub-related is stored on GitLab.
+
+MPI on the cluster goes through MPItrampoline: `prepare` builds MPIwrapper
+against the OpenMPI of the Julia module into `CI_DEPOT_ROOT`, and
+`hpc/preferences/Project.toml`, placed on `JULIA_LOAD_PATH` ahead of the
+module, points MPIPreferences at MPItrampoline. MPI.jl, HDF5.jl, P4est.jl
+and T8code.jl then all forward to the system OpenMPI with its network
+stack, and no bundled OpenMPI is loaded. Without this, the module's own
+system-MPI setting makes HDF5_jll load a second, bundled OpenMPI with the
+same library names, which fails on Otus. `hpc/probe_mpi.sh` and
+`hpc/probe_mpitrampoline.sh` are the diagnostics that established this.
 
 The pull mirror's schedule is set for the whole GitLab instance, not per
 project. To skip the wait, set the GitHub variable `GITLAB_MIRROR` to
