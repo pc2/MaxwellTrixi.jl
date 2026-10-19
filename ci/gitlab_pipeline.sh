@@ -207,9 +207,10 @@ collect() {
     output status "$status"
     output web_url "$(jq -r .web_url <<< "$pipeline")"
     output sha "$(jq -r .sha <<< "$pipeline")"
-    for job in $(jobs_json "$id" | jq -r '.[] | select(.artifacts_file != null) | .id'); do
+    # only the case jobs; prepare's artifacts are manifests and meshes
+    for job in $(jobs_json "$id" | jq -r '.[] | select(.stage == "run" and .artifacts_file != null) | .id'); do
         curl -fsS --header "PRIVATE-TOKEN: $GITLAB_TOKEN" --output "job-$job.zip" "$api/jobs/$job/artifacts"
-        unzip -qo "job-$job.zip" -x "*.toml" "meshes/*"
+        unzip -qo "job-$job.zip"
         rm "job-$job.zip"
     done
     { pipeline_heading "$id" "$pipeline"; jobs_table "$(jobs_json "$id")"; echo; julia ci/metrics_table.jl results; } | summary
