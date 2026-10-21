@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792574926042,
+  "lastUpdate": 1792574927801,
   "repoUrl": "https://github.com/pc2/MaxwellTrixi.jl",
   "entries": {
     "HPC validation": [
@@ -148,6 +148,90 @@ window.BENCHMARK_DATA = {
             "value": 0.6913849296088684,
             "unit": "ratio",
             "extra": "threads=32, status=pass, https://git.uni-paderborn.de/pc2-ci/julia/MaxwellTrixi.jl/-/pipelines/155912"
+          }
+        ]
+      }
+    ],
+    "HPC scaling": [
+      {
+        "commit": {
+          "author": {
+            "name": "Gerrit Pape",
+            "username": "papeg",
+            "email": "gerrit.pape@uni-paderborn.de"
+          },
+          "committer": {
+            "name": "Gerrit Pape",
+            "username": "papeg",
+            "email": "gerrit.pape@uni-paderborn.de"
+          },
+          "id": "79c7ef92f37f050e867b9819b656ec2d233ea75d",
+          "message": "use github-action-benchmark",
+          "timestamp": "2026-10-21T07:05:42Z",
+          "url": "https://github.com/pc2/MaxwellTrixi.jl/commit/79c7ef92f37f050e867b9819b656ec2d233ea75d"
+        },
+        "date": 1792574927778,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "mie/t1 PID",
+            "value": 3.2646511654629406e-7,
+            "unit": "s",
+            "extra": "threads=1, status=pass, https://git.uni-paderborn.de/pc2-ci/julia/MaxwellTrixi.jl/-/pipelines/155912"
+          },
+          {
+            "name": "mie/t1 time per DOF per rhs",
+            "value": 2.7621423268809246e-7,
+            "unit": "s",
+            "extra": "threads=1, status=pass, https://git.uni-paderborn.de/pc2-ci/julia/MaxwellTrixi.jl/-/pipelines/155912"
+          },
+          {
+            "name": "mie/t16 PID",
+            "value": 0.000007410802533423603,
+            "unit": "s",
+            "extra": "threads=16, status=pass, https://git.uni-paderborn.de/pc2-ci/julia/MaxwellTrixi.jl/-/pipelines/155912"
+          },
+          {
+            "name": "mie/t16 time per DOF per rhs",
+            "value": 0.000006309642607294822,
+            "unit": "s",
+            "extra": "threads=16, status=pass, https://git.uni-paderborn.de/pc2-ci/julia/MaxwellTrixi.jl/-/pipelines/155912"
+          },
+          {
+            "name": "mie/t2 PID",
+            "value": 7.193634733997237e-7,
+            "unit": "s",
+            "extra": "threads=2, status=pass, https://git.uni-paderborn.de/pc2-ci/julia/MaxwellTrixi.jl/-/pipelines/155912"
+          },
+          {
+            "name": "mie/t2 time per DOF per rhs",
+            "value": 6.030521161683484e-7,
+            "unit": "s",
+            "extra": "threads=2, status=pass, https://git.uni-paderborn.de/pc2-ci/julia/MaxwellTrixi.jl/-/pipelines/155912"
+          },
+          {
+            "name": "mie/t4 PID",
+            "value": 0.0000017117470030540204,
+            "unit": "s",
+            "extra": "threads=4, status=pass, https://git.uni-paderborn.de/pc2-ci/julia/MaxwellTrixi.jl/-/pipelines/155912"
+          },
+          {
+            "name": "mie/t4 time per DOF per rhs",
+            "value": 0.0000014414592568055617,
+            "unit": "s",
+            "extra": "threads=4, status=pass, https://git.uni-paderborn.de/pc2-ci/julia/MaxwellTrixi.jl/-/pipelines/155912"
+          },
+          {
+            "name": "mie/t8 PID",
+            "value": 0.0000039962669015240435,
+            "unit": "s",
+            "extra": "threads=8, status=pass, https://git.uni-paderborn.de/pc2-ci/julia/MaxwellTrixi.jl/-/pipelines/155912"
+          },
+          {
+            "name": "mie/t8 time per DOF per rhs",
+            "value": 0.0000034638723538447,
+            "unit": "s",
+            "extra": "threads=8, status=pass, https://git.uni-paderborn.de/pc2-ci/julia/MaxwellTrixi.jl/-/pipelines/155912"
           }
         ]
       }
