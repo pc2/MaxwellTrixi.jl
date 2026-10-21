@@ -127,19 +127,17 @@ jobs:
           pattern: visual-*
           merge-multiple: true
           path: docs/videos
-      - name: Fetch the cluster results history
-        run: |
-          if git fetch -q --depth 1 origin hpc-results 2>/dev/null; then
-            mkdir -p docs/hpc
-            git show FETCH_HEAD:history.jsonl > docs/hpc/history.jsonl
-            echo "$(wc -l < docs/hpc/history.jsonl) records"
-          else
-            echo "no hpc-results branch yet"
-          fi
       - name: Install documentation dependencies
         run: julia --project=docs -e 'using Pkg; Pkg.instantiate()'
       - name: Build documentation
         run: julia --threads=1 --project=docs docs/make.jl
+      - name: Add the benchmark dashboard from the results branch
+        run: |
+          if git fetch -q --depth 1 origin "${{ vars.BENCHMARK_BRANCH || 'hpc-results' }}" 2>/dev/null; then
+            git archive FETCH_HEAD bench | tar -x -C docs/build && echo "dashboard added"
+          else
+            echo "no benchmark branch yet"
+          fi
       - uses: actions/upload-artifact@v7
         if: github.event_name == 'pull_request'
         with:

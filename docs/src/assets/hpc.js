@@ -1,26 +1,19 @@
-// Validation and performance history: reads history.jsonl, one record per
-// case and cluster run as written by the HPC workflow, and draws it as inline
-// SVG. Colors and ink are the roles in hpc.css. Settings come from the data
-// attributes of the root element:
-//   data-history     URL of the history, default ../assets/hpc/history.jsonl
-//   data-branch      branch selected first, default main
-//   data-branches    comma separated branches to offer, default all recorded
-//   data-indicators  JSON object of metric name to label for the performance
-//                    and scaling charts
-//   data-checks      regular expression marking a metric as a reference check
-//   data-timing      regular expression marking a timing variant
+// Validation and performance charts from the data of github-action-benchmark,
+// bench/data.js on the results branch, copied into the site by the
+// documentation workflow. Each bench is named "<case>/<variant> <quantity>"
+// with "threads=<n>, status=<s>, <pipeline url>" as extra; quantities with
+// unit "s" are performance indicators, all others reference checks. Colors
+// and ink are the roles in hpc.css. Settings on the root element:
+//   data-source   URL of data.js, default ../bench/data.js
+//   data-timing   regular expression marking a timing variant
 
 const root = document.getElementById("hpc");
 const settings = root.dataset;
-const DATA_URL = settings.history || "../assets/hpc/history.jsonl";
-const CHECK = new RegExp(settings.checks || "_(relative_error|absolute_error|fraction|plus_reflectance)$");
+const DATA_URL = settings.source || "../bench/data.js";
 const TIMING = new RegExp(settings.timing || "^t\\d+$");
-const METRICS = settings.indicators ? JSON.parse(settings.indicators)
-  : { pid_seconds: "PID", time_per_dof_per_rhs_seconds: "time per DOF per rhs" };
-const DEFAULT_BRANCH = settings.branch || "main";
-const BRANCHES = settings.branches ? settings.branches.split(",").map((b) => b.trim()) : null;
+const INDICATORS = ["PID", "time per DOF per rhs"];
 
-const state = { records: [], branch: "", selectedCase: "all", metric: Object.keys(METRICS)[0], slots: new Map() };
+const state = { records: [], selectedCase: "all", metric: INDICATORS[0], slots: new Map() };
 
 function el(tag, attributes = {}, children = []) {
   const node = document.createElement(tag);
@@ -47,8 +40,6 @@ function fmt(value) {
 }
 
 const fmtDate = (ms) => new Date(ms).toISOString().slice(0, 10);
-const checkLabel = (key) => key.replace(/_(relative|absolute)_error$/, "").replaceAll("_", " ");
-const repoUrl = (record) => record.run_url.replace(/\/actions\/runs\/\d+$/, "");
 
 function niceTicks(min, max, count) {
   if (!(max > min)) return [min];
@@ -202,67 +193,62 @@ function section(id) {
   return node;
 }
 
-function latestPipeline(records) {
-  const dates = records.map((r) => Date.parse(r.date));
-  const latest = Math.max(...dates);
-  return records.filter((r, i) => dates[i] === latest);
+function latestRun(records) {
+  const latest = Math.max(...records.map((r) => r.date));
+  return records.filter((r) => r.date === latest);
 }
+
+const isCheck = (record, quantity) => record.units[quantity] !== "s";
+const checks = (record) => Object.keys(record.metrics).filter((q) => isCheck(record, q));
+const cases = (records) => [...new Set(records.map((r) => r.case))].sort();
 
 function renderLatest(records) {
   const node = section("hpc-latest");
-  if (records.length === 0) { node.append(el("p", { class: "viz-note" }, ["no runs on this branch"])); return; }
-  const latest = latestPipeline(records);
-  const first = latest[0];
-  node.append(el("p", { class: "viz-note" }, [
-    `${fmtDate(Date.parse(first.date))}, commit `,
-    el("a", { href: `${repoUrl(first)}/commit/${first.commit}` }, [first.commit.slice(0, 7)]), ", ",
-    el("a", { href: first.pipeline_url }, [`pipeline ${first.pipeline}`]), ", ",
-    el("a", { href: first.run_url }, ["workflow run"])]));
-  const table = el("table", {}, [el("thead", {}, [el("tr", {}, ["case", "variant", "threads", "status", "checks", "PID [s]", "time/DOF/RHS [s]", "steps"].map((h) => el("th", {}, [h])))])]);
-  const body = el("tbody");
-  for (const r of latest.sort((a, b) => a.case.localeCompare(b.case) || a.threads - b.threads)) {
-    const checks = Object.entries(r.metrics).filter(([k]) => CHECK.test(k)).map(([k, v]) => `${checkLabel(k)} ${fmt(v)}`).join(", ");
-    body.append(el("tr", {}, [
-      el("td", { class: "viz-text" }, [r.case]), el("td", { class: "viz-text" }, [r.variant]), el("td", {}, [String(r.threads)]),
-      el("td", { class: `viz-text viz-status ${r.status}` }, [r.status]), el("td", { class: "viz-text" }, [checks]),
-      el("td", {}, [fmt(r.metrics.pid_seconds)]), el("td", {}, [fmt(r.metrics.time_per_dof_per_rhs_seconds)]), el("td", {}, [fmt(r.metrics.steps)])]));
+  if (records.length === 0) { node.append(el("p", { class: "viz-note" }, ["no runs recorded"])); return; }
+  for (const suite of [...new Set(records.map((r) => r.suite))].sort().reverse()) {
+    const latest = latestRun(records.filter((r) => r.suite === suite));
+    const first = latest[0];
+    node.append(el("p", { class: "viz-note" }, [
+      `${suite}: ${fmtDate(first.date)}, commit `,
+      el("a", { href: first.commit.url }, [first.commit.id.slice(0, 7)]), ", ",
+      el("a", { href: first.pipeline_url }, ["pipeline"])]));
+    const table = el("table", {}, [el("thead", {}, [el("tr", {}, ["case", "variant", "threads", "status", "checks", "PID [s]", "time/DOF/RHS [s]"].map((h) => el("th", {}, [h])))])]);
+    const body = el("tbody");
+    for (const r of latest.sort((a, b) => a.case.localeCompare(b.case) || a.threads - b.threads)) {
+      body.append(el("tr", {}, [
+        el("td", { class: "viz-text" }, [r.case]), el("td", { class: "viz-text" }, [r.variant]), el("td", {}, [String(r.threads)]),
+        el("td", { class: `viz-text viz-status ${r.status}` }, [r.status]),
+        el("td", { class: "viz-text" }, [checks(r).map((q) => `${q} ${fmt(r.metrics[q])}`).join(", ")]),
+        el("td", {}, [fmt(r.metrics["PID"])]), el("td", {}, [fmt(r.metrics["time per DOF per rhs"])])]));
+    }
+    table.append(body);
+    node.append(table);
   }
-  table.append(body);
-  node.append(table);
 }
-
-const cases = (records) => [...new Set(records.map((r) => r.case))].sort();
 
 function renderAccuracy(records) {
   const node = section("hpc-accuracy");
-  const checked = records.filter((r) => r.variant === "default");
+  const checked = records.filter((r) => checks(r).length > 0);
   const names = cases(checked);
-  if (names.length === 0) { node.append(el("p", { class: "viz-note" }, ["no checked runs on this branch"])); return; }
+  if (names.length === 0) { node.append(el("p", { class: "viz-note" }, ["no checked runs recorded"])); return; }
   for (const name of names) {
     const rows = checked.filter((r) => r.case === name);
-    const keys = [...new Set(rows.flatMap((r) => Object.keys(r.metrics).filter((k) => CHECK.test(k))))];
+    const quantities = [...new Set(rows.flatMap(checks))];
     node.append(lineChart({ title: name, subtitle: "error against the reference", xType: "time", yLog: true, columns: Math.min(2, names.length),
-      series: keys.map((key, slot) => ({ name: checkLabel(key), slot, points: rows.map((r) => ({ x: Date.parse(r.date), y: r.metrics[key] })) })) }));
+      series: quantities.map((q, slot) => ({ name: q, slot, points: rows.filter((r) => q in r.metrics).map((r) => ({ x: r.date, y: r.metrics[q] })) })) }));
   }
 }
 
 function renderPerformance(records) {
   const node = section("hpc-performance");
   const names = cases(records);
-  if (names.length === 0) { node.append(el("p", { class: "viz-note" }, ["no runs on this branch"])); return; }
+  if (names.length === 0) { node.append(el("p", { class: "viz-note" }, ["no runs recorded"])); return; }
   for (const name of names) {
     const rows = records.filter((r) => r.case === name && Number.isFinite(r.metrics[state.metric]));
     const threads = [...new Set(rows.map((r) => r.threads))].sort((a, b) => a - b);
-    const series = threads.map((t) => {
-      const byPipeline = new Map();
-      for (const r of rows.filter((r) => r.threads === t)) {
-        const kept = byPipeline.get(r.pipeline);
-        if (!kept || r.metrics.steps > kept.metrics.steps) byPipeline.set(r.pipeline, r);
-      }
-      return { name: `${t} threads`, slot: state.slots.get(t) % 8,
-        points: [...byPipeline.values()].map((r) => ({ x: Date.parse(r.date), y: r.metrics[state.metric] })) };
-    });
-    node.append(lineChart({ title: name, subtitle: `${METRICS[state.metric]} over commits`, xType: "time", yUnit: "s", columns: Math.min(2, names.length), series }));
+    const series = threads.map((t) => ({ name: `${t} threads`, slot: state.slots.get(t) % 8,
+      points: rows.filter((r) => r.threads === t).map((r) => ({ x: r.date, y: r.metrics[state.metric] })) }));
+    node.append(lineChart({ title: name, subtitle: `${state.metric} over commits`, xType: "time", yUnit: "s", columns: Math.min(2, names.length), series }));
   }
 }
 
@@ -270,17 +256,17 @@ function renderScaling(records) {
   const node = section("hpc-scaling");
   const timing = records.filter((r) => TIMING.test(r.variant));
   const names = cases(timing);
-  if (names.length === 0) { node.append(el("p", { class: "viz-note" }, ["no scaling runs on this branch"])); return; }
+  if (names.length === 0) { node.append(el("p", { class: "viz-note" }, ["no scaling runs recorded"])); return; }
   for (const name of names) {
-    const latest = latestPipeline(timing.filter((r) => r.case === name)).sort((a, b) => a.threads - b.threads);
-    node.append(lineChart({ title: name, subtitle: `latest scaling run, ${fmtDate(Date.parse(latest[0].date))}; flat means perfect scaling`,
+    const latest = latestRun(timing.filter((r) => r.case === name)).sort((a, b) => a.threads - b.threads);
+    node.append(lineChart({ title: name, subtitle: `latest scaling run, ${fmtDate(latest[0].date)}; flat means perfect scaling`,
       xType: "log2", yFromZero: true, yUnit: "s", columns: Math.min(2, names.length),
-      series: Object.entries(METRICS).map(([key, label], slot) => ({ name: label, slot, points: latest.map((r) => ({ x: r.threads, y: r.metrics[key] })) })) }));
+      series: INDICATORS.map((q, slot) => ({ name: q, slot, points: latest.filter((r) => q in r.metrics).map((r) => ({ x: r.threads, y: r.metrics[q] })) })) }));
   }
 }
 
 function render() {
-  const records = state.records.filter((r) => r.ref === state.branch && (state.selectedCase === "all" || r.case === state.selectedCase));
+  const records = state.records.filter((r) => state.selectedCase === "all" || r.case === state.selectedCase);
   renderLatest(records);
   renderAccuracy(records);
   renderPerformance(records);
@@ -292,20 +278,40 @@ function fillSelect(select, values, labels = values) {
 }
 
 function setupFilters() {
-  const branches = [...new Set(state.records.map((r) => r.ref))]
-    .filter((b) => !BRANCHES || BRANCHES.includes(b))
-    .sort((a, b) => (a === DEFAULT_BRANCH ? -1 : b === DEFAULT_BRANCH ? 1 : a.localeCompare(b)));
-  const branch = root.querySelector("#hpc-branch");
-  fillSelect(branch, branches);
-  state.branch = branches[0];
-  branch.addEventListener("change", () => { state.branch = branch.value; render(); });
   const caseSelect = root.querySelector("#hpc-case");
   const names = cases(state.records);
   fillSelect(caseSelect, ["all", ...names], ["all cases", ...names]);
   caseSelect.addEventListener("change", () => { state.selectedCase = caseSelect.value; render(); });
   const metric = root.querySelector("#hpc-metric");
-  fillSelect(metric, Object.keys(METRICS), Object.values(METRICS));
+  fillSelect(metric, INDICATORS);
   metric.addEventListener("change", () => { state.metric = metric.value; render(); });
+}
+
+// One record per suite entry, case and variant, with the quantities as metrics.
+function toRecords(data) {
+  const records = new Map();
+  for (const [suite, entries] of Object.entries(data.entries)) {
+    for (const entry of entries) {
+      for (const bench of entry.benches) {
+        const name = bench.name.match(/^([^/]+)\/(\S+) (.+)$/);
+        if (!name) continue;
+        const [, caseName, variant, quantity] = name;
+        const key = `${suite}|${entry.commit.id}|${entry.date}|${caseName}|${variant}`;
+        if (!records.has(key)) {
+          const extra = bench.extra || "";
+          records.set(key, { suite, date: entry.date, commit: entry.commit, case: caseName, variant,
+            threads: Number(extra.match(/threads=(\d+)/)?.[1] ?? NaN),
+            status: extra.match(/status=(\w+)/)?.[1] ?? "unknown",
+            pipeline_url: extra.match(/https?:\/\/\S+/)?.[0] ?? "",
+            metrics: {}, units: {} });
+        }
+        const record = records.get(key);
+        record.metrics[quantity] = bench.value;
+        record.units[quantity] = bench.unit;
+      }
+    }
+  }
+  return [...records.values()];
 }
 
 async function load() {
@@ -313,14 +319,14 @@ async function load() {
   try {
     const response = await fetch(DATA_URL, { cache: "no-store" });
     if (!response.ok) throw new Error(String(response.status));
-    state.records = (await response.text()).split("\n").filter((line) => line.trim() !== "").map((line) => JSON.parse(line));
+    const script = await response.text();
+    state.records = toRecords(JSON.parse(script.slice(script.indexOf("=") + 1)));
   } catch (error) {
-    note.textContent = "No results yet. The HPC workflow writes the history after each cluster run.";
+    note.textContent = "No results yet. The HPC workflow records them after each cluster run on main.";
     return;
   }
-  if (BRANCHES) state.records = state.records.filter((r) => BRANCHES.includes(r.ref));
   if (state.records.length === 0) { note.textContent = "No results yet."; return; }
-  note.textContent = `${state.records.length} records from ${new Set(state.records.map((r) => r.pipeline)).size} cluster runs.`;
+  note.textContent = `${state.records.length} results from ${new Set(state.records.map((r) => r.pipeline_url)).size} cluster runs on main.`;
   const threads = [...new Set(state.records.map((r) => r.threads))].sort((a, b) => a - b);
   threads.forEach((t, i) => state.slots.set(t, i));
   setupFilters();

@@ -13,12 +13,6 @@ mktempdir() do temporary
         directory = joinpath(@__DIR__, kind)
         isdir(directory) && cp(directory, joinpath(source, "assets", kind))
     end
-    # cluster results from the branch hpc-results, fetched by the documentation workflow
-    history = joinpath(@__DIR__, "hpc", "history.jsonl")
-    if isfile(history)
-        mkpath(joinpath(source, "assets", "hpc"))
-        cp(history, joinpath(source, "assets", "hpc", "history.jsonl"))
-    end
     media = r"^!\[([^\]]*)\]\((?:\.\./)*assets/figures/([a-z0-9_]+)\.png\)$"m
     for (directory, _, files) in walkdir(source), file in files
         endswith(file, ".md") || continue

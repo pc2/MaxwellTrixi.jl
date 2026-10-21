@@ -5,8 +5,10 @@ name: HPC
 # token, scope read_api, plus write_repository when pushing) and
 # GITLAB_TRIGGER_TOKEN. Variables: GITLAB_PROJECT_ID, optionally GITLAB_HOST,
 # GITLAB_PROJECT_PATH, GITLAB_MIRROR (pull, the default, waits for the
-# project's pull mirror; push pushes the commit) and HISTORY_BRANCHES (glob
-# patterns of the branches recorded on the results branch, default all).
+# project's pull mirror; push pushes the commit), BENCHMARK_BRANCH (branch
+# holding the benchmark history and dashboard, default hpc-results),
+# ALERT_THRESHOLD and FAIL_THRESHOLD (ratios to the previous result, default
+# 115% and 150%).
 
 on:
   workflow_dispatch:
@@ -37,7 +39,9 @@ env:
   GITLAB_PROJECT_PATH: ${{ vars.GITLAB_PROJECT_PATH || 'pc2-ci/julia/MaxwellTrixi.jl' }}
   GITLAB_MIRROR: ${{ vars.GITLAB_MIRROR || 'pull' }}
   GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
-  HISTORY_BRANCHES: ${{ vars.HISTORY_BRANCHES || '*' }}
+  BENCHMARK_BRANCH: ${{ vars.BENCHMARK_BRANCH || 'hpc-results' }}
+  ALERT_THRESHOLD: ${{ vars.ALERT_THRESHOLD || '115%' }}
+  FAIL_THRESHOLD: ${{ vars.FAIL_THRESHOLD || '150%' }}
 
 jobs:
   start:
@@ -109,6 +113,8 @@ jobs:
       PIPELINE_ID: ${{ needs.wait.outputs.pipeline_id }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - name: Download artifacts and summarize
         id: collect
         run: ci/gitlab_pipeline.sh collect "$PIPELINE_ID"
@@ -119,9 +125,59 @@ jobs:
           path: results
           if-no-files-found: warn
           retention-days: 90
-      - name: Append to the results branch
+      - name: Convert the metrics for the benchmark action
+        id: convert
         if: ${{ always() && steps.collect.outputs.sha != '' }}
-        run: ci/results.sh publish results "$GITHUB_REF_NAME" pipeline.json
+        run: |
+          for family in validation scaling; do
+            ci/results.sh benchmark results "$family" pipeline.json > "benchmark-$family.json"
+            echo "$family=$(jq 'length > 0' "benchmark-$family.json")" >> "$GITHUB_OUTPUT"
+          done
+          # the action needs the branch; an empty root commit starts it
+          if ! git ls-remote --exit-code --heads origin "$BENCHMARK_BRANCH" > /dev/null; then
+            root=$(git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit-tree "$(git hash-object -t tree /dev/null)" -m "benchmark history")
+            git push -q origin "${root}:refs/heads/$BENCHMARK_BRANCH"
+          fi
+          git fetch -q origin "$BENCHMARK_BRANCH:$BENCHMARK_BRANCH"
+      - name: Record the validation results
+        if: ${{ always() && steps.convert.outputs.validation == 'true' }}
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: HPC validation
+          tool: customSmallerIsBetter
+          output-file-path: benchmark-validation.json
+          ref: ${{ steps.collect.outputs.sha }}
+          github-token: ${{ github.token }}
+          gh-pages-branch: ${{ env.BENCHMARK_BRANCH }}
+          benchmark-data-dir-path: bench
+          skip-fetch-gh-pages: true
+          auto-push: ${{ github.ref_name == 'main' }}
+          summary-always: true
+          comment-always: ${{ github.ref_name != 'main' }}
+          comment-on-alert: true
+          alert-threshold: ${{ env.ALERT_THRESHOLD }}
+          fail-on-alert: true
+          fail-threshold: ${{ env.FAIL_THRESHOLD }}
+      - name: Record the scaling results
+        if: ${{ always() && steps.convert.outputs.scaling == 'true' }}
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: HPC scaling
+          tool: customSmallerIsBetter
+          output-file-path: benchmark-scaling.json
+          ref: ${{ steps.collect.outputs.sha }}
+          github-token: ${{ github.token }}
+          gh-pages-branch: ${{ env.BENCHMARK_BRANCH }}
+          benchmark-data-dir-path: bench
+          skip-fetch-gh-pages: true
+          auto-push: ${{ github.ref_name == 'main' }}
+          summary-always: true
+          comment-always: ${{ github.ref_name != 'main' }}
+          comment-on-alert: true
+          alert-threshold: ${{ env.ALERT_THRESHOLD }}
+          fail-on-alert: true
+          fail-threshold: ${{ env.FAIL_THRESHOLD }}
       - name: Rebuild the documentation with the new history
         if: ${{ always() && steps.collect.outputs.sha != '' }}
         run: gh workflow run docs.yml --ref main

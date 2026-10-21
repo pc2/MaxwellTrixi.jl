@@ -91,11 +91,29 @@ the pipeline with the job table, so the Checks tab shows the Slurm jobs live.
 When the pipeline has finished, the run downloads the artifacts and publishes
 a check run from the JUnit files, a results table in the run summary, the raw
 results as a run artifact and the commit status `gitlab/hpc` linking to the
-pipeline. It also appends one record per case to `history.jsonl` on the
-branch `hpc-results`, together with the run's `metrics.txt` files, which is
-what the [Validation and performance](@ref) page plots. Runs from every
-branch are recorded; the GitHub variable `HISTORY_BRANCHES` restricts this
-to glob patterns such as `main release/*`.
+pipeline. `ci/results.sh benchmark` then turns the `metrics.txt` files into
+the JSON of [github-action-benchmark](https://github.com/benchmark-action/github-action-benchmark),
+one entry per case, variant and quantity, and the action records them: a run
+on `main` appends them to `bench/data.js` on the branch `hpc-results`, which
+the action creates on first use, and the documentation build copies that
+directory into the site. The page [Validation and performance](@ref) draws
+its charts from `bench/data.js`, `docs/src/assets/hpc.js` reads it in the
+browser, and the action's own dashboard stays available under `bench/`. The suite `HPC validation` holds the
+reference errors and the performance indicators of the full cases, `HPC
+scaling` the indicators of the timing variants. The action also compares
+every quantity with its previous value on `main`: an increase beyond
+`ALERT_THRESHOLD`, 115% by default, is reported in the run summary and as a
+comment on the commit, beyond `FAIL_THRESHOLD`, 150% by default, it fails
+the run. Both are GitHub variables, as is `BENCHMARK_BRANCH`.
+
+This is also how a pull request is tested: start the workflow by hand on the
+branch of the pull request. The check runs attach to its head commit and
+appear in the pull request, and the comparison with the latest `main` run is
+posted as a comment on that commit, which the pull request shows in its
+timeline; nothing is appended to the history. The cluster runs the branch's
+code under the account of the runner, so a run stays a deliberate act by a
+maintainer, and branches from forks cannot be run this way, since the pull
+mirror only fetches this repository.
 `ci/gitlab_pipeline.sh` holds the GitLab calls and works by hand with the
 same variables.
 
