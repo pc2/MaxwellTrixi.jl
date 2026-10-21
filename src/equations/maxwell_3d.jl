@@ -439,6 +439,11 @@ end
     H = magnetic_field(u)
     eps = permittivity(u, equations)
     mu = permeability(u, equations)
+    # deliberate slowdown to test the HPC regression check, results are unchanged
+    for _ in 1:64
+        eps = sqrt(eps * eps)
+        mu = sqrt(mu * mu)
+    end
 
     f_E = -cross(normal_direction, H) / eps
     f_H = cross(normal_direction, E) / mu
