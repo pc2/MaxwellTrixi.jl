@@ -1,0 +1,74 @@
+name: HPC command
+
+# "/hpc" or "/hpc validation,scaling" as a pull request comment starts the HPC
+# workflow on the pull request's branch. Only users whose role on the
+# repository is listed in HPC_COMMAND_ROLES (default "admin maintain") may
+# start it; branches from forks cannot run, since the mirror only has this
+# repository's branches.
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  actions: write
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  dispatch:
+    if: >-
+      github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, '/hpc') &&
+      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BODY: ${{ github.event.comment.body }}
+      AUTHOR: ${{ github.event.comment.user.login }}
+      NUMBER: ${{ github.event.issue.number }}
+      COMMENT_ID: ${{ github.event.comment.id }}
+      ROLES: ${{ vars.HPC_COMMAND_ROLES || 'admin maintain' }}
+    steps:
+      - name: Check the command and the author
+        id: check
+        run: |
+          set -euo pipefail
+          react() { gh api "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content="$1" > /dev/null; }
+          reply() { gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments" -f body="$1" > /dev/null; }
+          deny() { react -1; reply "$1"; exit 1; }
+
+          command=$(head -n 1 <<< "$BODY" | tr -d '\r')
+          [[ $command =~ ^/hpc([[:space:]]+([a-z,]+))?[[:space:]]*$ ]] || exit 0
+          families=${BASH_REMATCH[2]:-validation}
+          [[ $families =~ ^(validation|scaling)(,(validation|scaling))*$ ]] \
+            || deny "Unknown families \`$families\`, use \`validation\`, \`scaling\` or both separated by a comma."
+
+          role=$(gh api "repos/$GITHUB_REPOSITORY/collaborators/$AUTHOR/permission" --jq .role_name)
+          read -r -a allowed <<< "$ROLES"
+          [[ " ${allowed[*]} " == *" $role "* ]] \
+            || deny "@$AUTHOR, cluster runs can only be started by roles \`$ROLES\`; yours is \`$role\`."
+
+          pr=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$NUMBER")
+          [ "$(jq -r .state <<< "$pr")" = open ] || deny "This pull request is not open."
+          [ "$(jq -r .head.repo.full_name <<< "$pr")" = "$GITHUB_REPOSITORY" ] \
+            || deny "Branches from forks cannot run on the cluster. Push the branch to this repository and open the pull request from there."
+
+          echo "families=$families" >> "$GITHUB_OUTPUT"
+          echo "branch=$(jq -r .head.ref <<< "$pr")" >> "$GITHUB_OUTPUT"
+          echo "sha=$(jq -r .head.sha <<< "$pr")" >> "$GITHUB_OUTPUT"
+          react eyes
+      - name: Start the HPC workflow
+        if: steps.check.outputs.branch != ''
+        env:
+          FAMILIES: ${{ steps.check.outputs.families }}
+          BRANCH: ${{ steps.check.outputs.branch }}
+          SHA: ${{ steps.check.outputs.sha }}
+        run: |
+          gh workflow run hpc.yml --repo "$GITHUB_REPOSITORY" --ref "$BRANCH" -f families="$FAMILIES"
+          gh api "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content=rocket > /dev/null
+          runs="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/workflows/hpc.yml?query=branch%3A$BRANCH"
+          gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments" \
+            -f body="Started the cluster run of \`$FAMILIES\` on \`$BRANCH\` at ${SHA:0:7}, requested by @$GITHUB_ACTOR. [Workflow runs]($runs). The results appear as checks on the commit." > /dev/null

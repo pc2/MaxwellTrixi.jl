@@ -106,14 +106,20 @@ every quantity with its previous value on `main`: an increase beyond
 comment on the commit, beyond `FAIL_THRESHOLD`, 150% by default, it fails
 the run. Both are GitHub variables, as is `BENCHMARK_BRANCH`.
 
-This is also how a pull request is tested: start the workflow by hand on the
-branch of the pull request. The check runs attach to its head commit and
-appear in the pull request, and the comparison with the latest `main` run is
-posted as a comment on that commit, which the pull request shows in its
-timeline; nothing is appended to the history. The cluster runs the branch's
-code under the account of the runner, so a run stays a deliberate act by a
-maintainer, and branches from forks cannot be run this way, since the pull
-mirror only fetches this repository.
+A pull request is tested by commenting `/hpc` on it, or `/hpc scaling` or
+`/hpc validation,scaling` for other families. `.github/workflows/hpc-command.yml`
+then starts the workflow on the pull request's branch, reacts to the comment
+and replies with a link to the runs. Only users whose role on the repository
+is listed in the GitHub variable `HPC_COMMAND_ROLES`, `admin maintain` by
+default, can start it; others get a reply saying so. The same works by hand
+under **Actions → HPC → Run workflow** with the branch selected. The check
+runs attach to the branch's head commit and appear in the pull request, and
+the comparison with the latest `main` run is posted as a comment on that
+commit, which the pull request shows in its timeline; nothing is appended to
+the history. The cluster runs the branch's code under the account of the
+runner, which is why starting it is limited to maintainers. Branches from
+forks cannot run, since the pull mirror only fetches this repository; a
+maintainer can push such a branch here first.
 `ci/gitlab_pipeline.sh` holds the GitLab calls and works by hand with the
 same variables.
 
