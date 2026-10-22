@@ -1,7 +1,8 @@
 # Long simulations on the Otus Slurm runner. Pipelines start from GitHub
 # (.github/workflows/hpc.yml) or from the GitLab UI, never on pushes to the
 # mirror. FAMILIES selects the job families, comma separated:
-# validation, scaling.
+# validation, scaling. CHECKOUT_SHA and CHECKOUT_REPOSITORY run the jobs on
+# that commit instead of the pipeline's, for pull requests from any fork.
 
 workflow:
   rules:
@@ -24,6 +25,14 @@ default:
     CI_JOB_JWT:
       aud: https://git.uni-paderborn.de
   before_script:
+    # a pull request run: the pipeline definition is the ref's, the code the pinned commit from GitHub
+    - |
+      if [ -n "${CHECKOUT_SHA:-}" ]; then
+        printf '%s' "$CHECKOUT_SHA" | grep -Eqx '[0-9a-f]{40}' || { echo "CHECKOUT_SHA is not a commit hash"; exit 1; }
+        git fetch -q --depth 1 "$CHECKOUT_REPOSITORY" "$CHECKOUT_SHA"
+        git checkout -q --force --detach "$CHECKOUT_SHA"
+        echo "checked out $CHECKOUT_SHA from $CHECKOUT_REPOSITORY"
+      fi
     - test -n "$CI_DEPOT_ROOT" || { echo "CI_DEPOT_ROOT is not set"; exit 1; }
     - module load lang/JuliaHPC/1.13.1-foss-2025a
     # our depot first, then whatever the module set or Julia's bundled depots

@@ -106,20 +106,22 @@ every quantity with its previous value on `main`: an increase beyond
 comment on the commit, beyond `FAIL_THRESHOLD`, 150% by default, it fails
 the run. Both are GitHub variables, as is `BENCHMARK_BRANCH`.
 
-A pull request is tested by commenting `/hpc` on it, or `/hpc scaling` or
-`/hpc validation,scaling` for other families. `.github/workflows/hpc-command.yml`
-then starts the workflow on the pull request's branch, reacts to the comment
-and replies with a link to the runs. Only users whose role on the repository
-is listed in the GitHub variable `HPC_COMMAND_ROLES`, `admin maintain` by
-default, can start it; others get a reply saying so. The same works by hand
-under **Actions → HPC → Run workflow** with the branch selected. The check
-runs attach to the branch's head commit and appear in the pull request, and
-the comparison with the latest `main` run is posted as a comment on that
-commit, which the pull request shows in its timeline; nothing is appended to
-the history. The cluster runs the branch's code under the account of the
-runner, which is why starting it is limited to maintainers. Branches from
-forks cannot run, since the pull mirror only fetches this repository; a
-maintainer can push such a branch here first.
+A pull request, also one from a fork, is tested by commenting `/hpc` on it,
+or `/hpc scaling` or `/hpc validation,scaling` for other families.
+`.github/workflows/hpc-command.yml` pins the pull request's head commit and
+starts the workflow on the default branch with it. The GitLab pipeline then
+runs on the mirror's default branch, with `.gitlab-ci.yml` from there, and
+each job fetches the pinned commit from GitHub, which serves the commits of
+every pull request, before it runs. Later pushes need a new comment. Only
+users whose role on the repository is listed in the GitHub variable
+`HPC_COMMAND_ROLES`, `admin maintain` by default, can start it, since the
+cluster runs the pull request's code under the account of the runner;
+others get a reply saying so. The check runs and the JUnit check attach to
+the pinned commit and appear in the pull request, the comparison with the
+latest `main` run is posted as a comment on that commit, and a last comment
+on the pull request links the run and the pipeline. Nothing is appended to
+the history. Starting the workflow by hand under **Actions → HPC → Run
+workflow** on a branch of this repository works as before.
 `ci/gitlab_pipeline.sh` holds the GitLab calls and works by hand with the
 same variables.
 

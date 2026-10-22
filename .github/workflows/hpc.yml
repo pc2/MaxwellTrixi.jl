@@ -8,7 +8,11 @@ name: HPC
 # project's pull mirror; push pushes the commit), BENCHMARK_BRANCH (branch
 # holding the benchmark history and dashboard, default hpc-results),
 # ALERT_THRESHOLD and FAIL_THRESHOLD (ratios to the previous result, default
-# 115% and 150%).
+# 115% and 150%). With pr and sha, started by hpc-command.yml on the default
+# branch, the jobs run that pull request commit, from this repository or a
+# fork, and the results are compared but not recorded.
+
+run-name: ${{ inputs.pr && format('HPC pull request {0}', inputs.pr) || 'HPC' }}
 
 on:
   workflow_dispatch:
@@ -21,6 +25,14 @@ on:
         description: Attach to a running GitLab pipeline instead of starting one
         type: string
         default: ''
+      pr:
+        description: Pull request number, set by the /hpc comment command
+        type: string
+        default: ''
+      sha:
+        description: Commit of the pull request to run, set by the /hpc comment command
+        type: string
+        default: ''
   # Weekly validation of main, disabled. Remove the comment signs to enable;
   # a scheduled run uses the family default below.
   # schedule:
@@ -31,6 +43,7 @@ permissions:
   statuses: write
   checks: write
   actions: write
+  pull-requests: write
 
 env:
   FAMILIES: ${{ inputs.families || 'validation' }}
@@ -42,6 +55,9 @@ env:
   BENCHMARK_BRANCH: ${{ vars.BENCHMARK_BRANCH || 'hpc-results' }}
   ALERT_THRESHOLD: ${{ vars.ALERT_THRESHOLD || '115%' }}
   FAIL_THRESHOLD: ${{ vars.FAIL_THRESHOLD || '150%' }}
+  CHECKOUT_SHA: ${{ inputs.sha }}
+  CHECKOUT_REPOSITORY: ${{ inputs.sha && format('{0}/{1}.git', github.server_url, github.repository) || '' }}
+  RECORD: ${{ github.ref_name == 'main' && !inputs.sha }}
 
 jobs:
   start:
@@ -95,10 +111,12 @@ jobs:
       - name: Hand over to a new run
         if: steps.wait.outputs.finished != 'true'
         run: |
-          gh workflow run hpc.yml --ref "$GITHUB_REF_NAME" -f families="$FAMILIES" -f pipeline_id="$PIPELINE_ID"
+          gh workflow run hpc.yml --ref "$GITHUB_REF_NAME" -f families="$FAMILIES" -f pipeline_id="$PIPELINE_ID" \
+            -f pr="$PR" -f sha="$CHECKOUT_SHA"
           echo "Pipeline $PIPELINE_ID still running, a new run of this workflow continues waiting." >> "$GITHUB_STEP_SUMMARY"
         env:
           GH_TOKEN: ${{ github.token }}
+          PR: ${{ inputs.pr }}
 
   collect:
     name: Collect results
@@ -141,6 +159,7 @@ jobs:
           fi
           git fetch -q origin "$BENCHMARK_BRANCH:$BENCHMARK_BRANCH"
       - name: Record the validation results
+        id: bench_validation
         if: ${{ always() && steps.convert.outputs.validation == 'true' }}
         uses: benchmark-action/github-action-benchmark@v1
         with:
@@ -152,14 +171,15 @@ jobs:
           gh-pages-branch: ${{ env.BENCHMARK_BRANCH }}
           benchmark-data-dir-path: bench
           skip-fetch-gh-pages: true
-          auto-push: ${{ github.ref_name == 'main' }}
+          auto-push: ${{ env.RECORD == 'true' }}
           summary-always: true
-          comment-always: ${{ github.ref_name != 'main' }}
+          comment-always: ${{ env.RECORD != 'true' }}
           comment-on-alert: true
           alert-threshold: ${{ env.ALERT_THRESHOLD }}
           fail-on-alert: true
           fail-threshold: ${{ env.FAIL_THRESHOLD }}
       - name: Record the scaling results
+        id: bench_scaling
         if: ${{ always() && steps.convert.outputs.scaling == 'true' }}
         uses: benchmark-action/github-action-benchmark@v1
         with:
@@ -171,26 +191,27 @@ jobs:
           gh-pages-branch: ${{ env.BENCHMARK_BRANCH }}
           benchmark-data-dir-path: bench
           skip-fetch-gh-pages: true
-          auto-push: ${{ github.ref_name == 'main' }}
+          auto-push: ${{ env.RECORD == 'true' }}
           summary-always: true
-          comment-always: ${{ github.ref_name != 'main' }}
+          comment-always: ${{ env.RECORD != 'true' }}
           comment-on-alert: true
           alert-threshold: ${{ env.ALERT_THRESHOLD }}
           fail-on-alert: true
           fail-threshold: ${{ env.FAIL_THRESHOLD }}
       - name: Rebuild the documentation with the new history
-        if: ${{ always() && steps.collect.outputs.sha != '' }}
+        if: ${{ always() && steps.collect.outputs.sha != '' && env.RECORD == 'true' }}
         run: gh workflow run docs.yml --ref main
         env:
           GH_TOKEN: ${{ github.token }}
-      - uses: dorny/test-reporter@v2
+      - uses: mikepenz/action-junit-report@v6
         if: always()
         with:
-          name: HPC checks
-          path: results/**/junit.xml
-          reporter: java-junit
-          fail-on-error: false
-          fail-on-empty: false
+          check_name: HPC checks
+          report_paths: results/**/junit.xml
+          commit: ${{ steps.collect.outputs.sha || github.sha }}
+          require_tests: false
+          include_passed: true
+          detailed_summary: true
       - name: Commit status
         if: always()
         run: |
@@ -200,3 +221,21 @@ jobs:
             -f target_url="${{ steps.collect.outputs.web_url }}" -f description="pipeline $PIPELINE_ID ${{ steps.collect.outputs.status }}"
         env:
           GH_TOKEN: ${{ github.token }}
+      - name: Report to the pull request
+        if: ${{ always() && inputs.pr != '' }}
+        run: |
+          regression=
+          if [ "$BENCH_VALIDATION" = failure ] || [ "$BENCH_SCALING" = failure ]; then
+            regression=" Performance or accuracy got worse beyond $FAIL_THRESHOLD of the latest \`main\` run, see the comparison comment on the commit."
+          fi
+          run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --silent -f body="Cluster run of \`$FAMILIES\` at ${CHECKOUT_SHA:0:7} finished with pipeline status **$STATUS**.$regression
+
+          [Run summary]($run_url) · [GitLab pipeline]($WEB_URL)"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ inputs.pr }}
+          STATUS: ${{ steps.collect.outputs.status || 'unknown' }}
+          WEB_URL: ${{ steps.collect.outputs.web_url }}
+          BENCH_VALIDATION: ${{ steps.bench_validation.outcome }}
+          BENCH_SCALING: ${{ steps.bench_scaling.outcome }}

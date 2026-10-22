@@ -4,7 +4,9 @@
 # access token, scope read_api, plus write_repository for push) and, for
 # start, GITLAB_TRIGGER_TOKEN. The commit reaches GitLab either through the
 # project's pull mirror (mirrored) or by pushing it (push, needs
-# GITLAB_PROJECT_PATH).
+# GITLAB_PROJECT_PATH). With CHECKOUT_SHA and CHECKOUT_REPOSITORY set, the
+# jobs run that commit, fetched from GitHub, and the check runs and outputs
+# refer to it instead of the pipeline's commit.
 #
 #   ci/gitlab_pipeline.sh mirrored <sha> <max_minutes>   wait for the pull mirror
 #   ci/gitlab_pipeline.sh push <ref> <sha>               push the commit instead
@@ -66,12 +68,18 @@ start() {
             *) echo "unknown family '$family', use validation or scaling" >&2; return 1 ;;
         esac
     done
+    local checkout=()
+    if [ -n "${CHECKOUT_SHA:-}" ]; then
+        checkout=(--form "variables[CHECKOUT_SHA]=$CHECKOUT_SHA"
+            --form "variables[CHECKOUT_REPOSITORY]=${CHECKOUT_REPOSITORY:?CHECKOUT_REPOSITORY is not set}")
+    fi
     response=$(curl -sS --request POST "$api/trigger/pipeline" \
         --form "token=${GITLAB_TRIGGER_TOKEN:?GITLAB_TRIGGER_TOKEN is not set}" \
         --form "ref=$ref" \
         --form "variables[FAMILIES]=$families" \
-        --form "variables[GITHUB_SHA]=$(git rev-parse HEAD)" \
-        --form "variables[GITHUB_RUN_URL]=$run_url")
+        --form "variables[GITHUB_SHA]=${CHECKOUT_SHA:-$(git rev-parse HEAD)}" \
+        --form "variables[GITHUB_RUN_URL]=$run_url" \
+        ${checkout[@]+"${checkout[@]}"})
     id=$(jq -r '.id // empty' <<< "$response")
     if [ -z "$id" ]; then
         echo "starting the pipeline failed: $response" >&2
@@ -79,9 +87,14 @@ start() {
     fi
     output pipeline_id "$id"
     output web_url "$(jq -r .web_url <<< "$response")"
-    output sha "$(jq -r .sha <<< "$response")"
+    output sha "$(tested_sha "$response")"
     echo "::notice title=GitLab pipeline $id::$(jq -r .web_url <<< "$response")"
     { pipeline_heading "$id" "$response"; jobs_links "$(jobs_json "$id")"; } | summary
+}
+
+# the commit the jobs ran, given the pipeline JSON
+tested_sha() {
+    echo "${CHECKOUT_SHA:-$(jq -r .sha <<< "$1")}"
 }
 
 jobs_json() {
@@ -146,7 +159,7 @@ check_update() {
 
 checks_sync() {
     local id=$1 pipeline=$2 jobs=$3 sha status name job_status url duration state changed=false
-    sha=$(jq -r .sha <<< "$pipeline")
+    sha=$(tested_sha "$pipeline")
     status=$(jq -r .status <<< "$pipeline")
     while IFS=$'\t' read -r name job_status url duration; do
         state=$(check_state "$job_status")
@@ -174,7 +187,7 @@ wait_for() {
     deadline=$(( $(date +%s) + max_minutes * 60 ))
     pipeline=$(get "pipelines/$id")
     echo "::notice title=GitLab pipeline $id::$(jq -r .web_url <<< "$pipeline")"
-    if checks_enabled; then checks_init "$(jq -r .sha <<< "$pipeline")"; fi
+    if checks_enabled; then checks_init "$(tested_sha "$pipeline")"; fi
     while :; do
         pipeline=$(get "pipelines/$id")
         jobs=$(jobs_json "$id")
@@ -207,7 +220,7 @@ collect() {
     status=$(jq -r .status <<< "$pipeline")
     output status "$status"
     output web_url "$(jq -r .web_url <<< "$pipeline")"
-    output sha "$(jq -r .sha <<< "$pipeline")"
+    output sha "$(tested_sha "$pipeline")"
     # only the case jobs; prepare's artifacts are manifests and meshes
     for job in $(jobs_json "$id" | jq -r '.[] | select(.stage == "run" and .artifacts_file != null) | .id'); do
         curl -fsS --header "PRIVATE-TOKEN: $GITLAB_TOKEN" --output "job-$job.zip" "$api/jobs/$job/artifacts"

@@ -1,10 +1,10 @@
 name: HPC command
 
 # "/hpc" or "/hpc validation,scaling" as a pull request comment starts the HPC
-# workflow on the pull request's branch. Only users whose role on the
-# repository is listed in HPC_COMMAND_ROLES (default "admin maintain") may
-# start it; branches from forks cannot run, since the mirror only has this
-# repository's branches.
+# workflow for the pull request's head commit, also from forks. The workflow
+# definitions come from the default branch, the code from the commit pinned
+# here. Only users whose role on the repository is listed in
+# HPC_COMMAND_ROLES (default "admin maintain") may start it.
 
 on:
   issue_comment:
@@ -53,22 +53,24 @@ jobs:
 
           pr=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$NUMBER")
           [ "$(jq -r .state <<< "$pr")" = open ] || deny "This pull request is not open."
-          [ "$(jq -r .head.repo.full_name <<< "$pr")" = "$GITHUB_REPOSITORY" ] \
-            || deny "Branches from forks cannot run on the cluster. Push the branch to this repository and open the pull request from there."
+          sha=$(jq -r .head.sha <<< "$pr")
+          [[ $sha =~ ^[0-9a-f]{40}$ ]] || deny "Could not determine the head commit of this pull request."
 
           echo "families=$families" >> "$GITHUB_OUTPUT"
-          echo "branch=$(jq -r .head.ref <<< "$pr")" >> "$GITHUB_OUTPUT"
-          echo "sha=$(jq -r .head.sha <<< "$pr")" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "head=$(jq -r .head.label <<< "$pr")" >> "$GITHUB_OUTPUT"
           react eyes
       - name: Start the HPC workflow
-        if: steps.check.outputs.branch != ''
+        if: steps.check.outputs.sha != ''
         env:
           FAMILIES: ${{ steps.check.outputs.families }}
-          BRANCH: ${{ steps.check.outputs.branch }}
           SHA: ${{ steps.check.outputs.sha }}
+          HEAD: ${{ steps.check.outputs.head }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
-          gh workflow run hpc.yml --repo "$GITHUB_REPOSITORY" --ref "$BRANCH" -f families="$FAMILIES"
+          gh workflow run hpc.yml --repo "$GITHUB_REPOSITORY" --ref "$DEFAULT_BRANCH" \
+            -f families="$FAMILIES" -f pr="$NUMBER" -f sha="$SHA"
           gh api "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content=rocket > /dev/null
-          runs="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/workflows/hpc.yml?query=branch%3A$BRANCH"
+          runs="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/workflows/hpc.yml"
           gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments" \
-            -f body="Started the cluster run of \`$FAMILIES\` on \`$BRANCH\` at ${SHA:0:7}, requested by @$GITHUB_ACTOR. [Workflow runs]($runs). The results appear as checks on the commit." > /dev/null
+            -f body="Started the cluster run of \`$FAMILIES\` for \`$HEAD\` at ${SHA:0:7}, requested by @$AUTHOR. Later pushes need a new \`/hpc\`. [Workflow runs]($runs), the results appear as checks on the commit." > /dev/null
